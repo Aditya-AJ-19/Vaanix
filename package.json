@@ -1,0 +1,27 @@
+{
+  "name": "vaanix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "India-first Multilingual Voice Agent SaaS Platform",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "clean": "turbo clean",
+    "db:generate": "pnpm --filter database db:generate",
+    "db:migrate": "pnpm --filter database db:migrate",
+    "db:push": "pnpm --filter database db:push",
+    "db:studio": "pnpm --filter database db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4",
+    "prettier": "^3.5.3",
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.1"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
