@@ -104,26 +104,45 @@ gantt
 ### Engineering Tasks
 
 #### 1.1 Agent Data Model
-- [ ] Design Agent entity schema
-- [ ] Implement agent CRUD operations
-- [ ] Add agent versioning support
-- [ ] Create agent templates system
+- [x] Design Agent entity schema (extended with systemPrompt, language, voiceId, modelProvider, etc.)
+- [x] Implement agent CRUD operations (enhanced with pagination, search, filter)
+- [x] Add agent versioning support (version field + publish/archive lifecycle)
+- [x] Create agent templates system (agentTemplates table)
+- [x] Add knowledge base schema (knowledgeBases, knowledgeDocuments, agentKnowledgeBases)
 
-#### 1.2 Visual Builder Canvas
-- [ ] Integrate React Flow for canvas
-- [ ] Create custom node types (Prompt, Condition, Action, etc.)
-- [ ] Implement edge connection logic
-- [ ] Build node configuration panels
-- [ ] Add undo/redo functionality
-- [ ] Implement canvas save/load
-- [ ] Create agent workflow serialization format
+#### 1.1b AI Provider Abstraction Layer (Plug & Play)
+- [x] Create `packages/ai-providers` workspace package
+- [x] Define unified `LLMProvider` and `EmbeddingProvider` interfaces
+- [x] Build registry with .env-based auto-discovery + per-agent overrides
+- [x] Implement OpenAI provider (LLM + Embeddings)
+- [x] Implement Google Gemini provider (LLM)
+- [x] Implement Azure OpenAI provider (LLM + Embeddings)
 
-#### 1.3 Agent Configuration UI
-- [ ] Personality configuration panel
-- [ ] Voice/tone selection (dropdown for now)
-- [ ] Language selection (Hindi, English, Regional)
+#### 1.2 Agent Configuration UI ✅
+- [x] Install react-hook-form, zod, @hookform/resolvers on `@vaanix/web`
+- [x] Build `AgentCard` component (status badges, menu actions, language display)
+- [x] Build `CreateAgentDialog` (react-hook-form + zod validation)
+- [x] Build agents list page (grid view, search bar, status filter tabs)
+- [x] Build agent detail page at `/dashboard/agents/[id]` (General tab with model config)
+- [x] Build agent detail layout with tabbed navigation + header
+- [x] Build Personality & Prompt tab (system prompt + personality/tone)
+- [x] Build Voice & Language tab (language selection + voice ID)
+- [x] Build Messages tab (greeting + fallback message)
+- [x] Build `useAgents` and `useAgent` custom hooks (CRUD + publish/archive/duplicate)
+- [x] Build shared Zod validation schemas (`validations/agent.ts`)
+
+#### 1.3 Visual Builder Canvas (React Flow) ✅
+- [x] Integrate React Flow for canvas
+- [x] Create custom node types (Start, Prompt, Condition, Action, End)
+- [x] Implement edge connection logic
+- [x] Build node configuration panels
+- [x] Add undo/redo functionality
+- [x] Implement canvas save/load
+- [x] Create agent workflow serialization format
+
+#### 1.4 Agent Advanced Configuration
 - [ ] Response style configuration
-- [ ] Greeting/fallback message setup
+- [ ] Agent templates integration in create dialog
 
 #### 1.4 Knowledge Base System
 - [ ] Design knowledge entity schema
@@ -396,7 +415,7 @@ Phase 4 (Production)
 | Phase | Duration | Milestone | Status |
 |-------|----------|-----------|--------|
 | Phase 0 | 2 weeks | Foundation live, auth working | ✅ Complete |
-| Phase 1 | 4 weeks | Agent builder functional | ⬜ Next |
+| Phase 1 | 4 weeks | Agent builder functional | 🔨 In Progress (1.1 + 1.1b + 1.2 + 1.3 ✅) |
 | Phase 2 | 3 weeks | Web widget deployed | ⬜ Pending |
 | Phase 3 | 2 weeks | Billing live | ⬜ Pending |
 | Phase 4 | 4 weeks | Production ready | ⬜ Pending |

@@ -510,3 +510,46 @@ Target end-to-end: < 2 seconds
 | Voice Runtime | Separable module | High | ⬜ Phase 1 |
 | Telephony | Exotel/Plivo primary | Medium | ⬜ Phase 2 |
 | TTS | Azure primary, Bhashini secondary | Medium | ⬜ Phase 1 |
+| AI Provider Abstraction | Registry + .env discovery | High | ✅ Phase 1.1b |
+| Agent Config UI | Tabbed interface + validation | High | ✅ Phase 1.2 |
+| Visual Builder Canvas | React Flow + Zustand + dagre | High | ✅ Phase 1.3 |
+
+---
+
+## 🛠️ Phase 1 Implementation Findings
+
+### 1.1b AI Provider Abstraction — Technical Choices
+
+1. **Registry Pattern:** Single `getLLMProvider()` / `getEmbeddingProvider()` entry point with auto-discovery from `.env`. Per-agent overrides stored in DB (`modelProvider`, `modelId` columns). Adding a new provider = one file + register in registry.
+
+2. **OpenAI SDK Reuse for Azure:** Azure OpenAI provider uses the standard `openai` npm package with `baseURL` and `apiKey` overrides rather than the separate `@azure/openai` SDK. Simplifies dependencies and keeps API surface identical.
+
+3. **Streaming Support:** All LLM providers implement both `chat()` (full response) and `chatStream()` (async iterable of chunks). This was designed upfront to avoid refactoring when real-time voice pipeline needs streaming.
+
+### 1.2 Agent Configuration UI — Technical Choices
+
+1. **No SWR/React Query:** Used plain `useState` + `useEffect` + `useCallback` hooks for data fetching instead of SWR/React Query. The agent CRUD operations are simple enough that the overhead of a caching library wasn't justified. Can be added later if needed.
+
+2. **react-hook-form + Zod:** Used `react-hook-form` with `@hookform/resolvers/zod` for the create dialog. Config tabs use native `FormData` extraction for simpler save flows (no controlled inputs needed for edit forms).
+
+3. **Tabbed Sub-routes:** Agent detail uses Next.js `[id]/layout.tsx` with nested routes (`[id]/page.tsx`, `[id]/personality/page.tsx`, `[id]/voice/page.tsx`, `[id]/messages/page.tsx`) instead of client-side tab state. Benefits: shareable URLs, browser back/forward works, each tab lazy-loads independently.
+
+4. **10 Indian Languages Supported:** Language list includes English + 9 major Indian languages (Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, Gujarati, Malayalam, Punjabi) with native script labels for user clarity.
+
+5. **Model Provider dropdown fed from constants:** Currently `MODEL_PROVIDERS` is a static constant matching the 3 implemented providers (OpenAI, Google Gemini, Azure). Future: fetch available providers dynamically from `@vaanix/ai-providers` `listAvailableProviders()` API.
+
+### 1.3 Visual Builder Canvas — Technical Choices
+
+1. **React Flow v12 (@xyflow/react):** Used the v12 `@xyflow/react` package (renamed from `reactflow`). Required explicit type assertions when casting `applyNodeChanges()` / `applyEdgeChanges()` returns back to `BuilderNode[]` / `BuilderEdge[]` because the generic `Node[]` return type doesn't carry our custom data union through.
+
+2. **Zustand for canvas state:** Builder state lives in a dedicated Zustand store (`builder-store.ts`) separate from any React context. This allows React Flow callbacks (`onNodesChange`, `onEdgesChange`, `onConnect`) to directly mutate store state without re-rendering the entire tree. The store also manages undo/redo with a 30-snapshot circular buffer.
+
+3. **Typed node data union:** Five distinct `*NodeData` interfaces (`StartNodeData`, `PromptNodeData`, `ConditionNodeData`, `ActionNodeData`, `EndNodeData`) are unioned into `BuilderNodeData`. Each interface includes `[key: string]: unknown` to satisfy React Flow's `Record<string, unknown>` constraint on node data.
+
+4. **dagre for auto-layout:** Used `@dagrejs/dagre` for automatic top-to-bottom graph layout. Lightweight (~30 KB), no external runtime dependencies. Provides clean hierarchical layouts when users click "Auto-layout".
+
+5. **Serialization as JSON string in `workflowData`:** The workflow (nodes + edges) is serialized as a JSON string and stored in the agent's `workflowData` text column. This keeps the schema simple — no separate workflow tables needed. Deserialization includes validation (`Array.isArray` checks) for robustness.
+
+6. **Full-screen builder overlay:** Builder layout uses `fixed inset-0 z-50` to take over the entire viewport, providing a distraction-free canvas editing experience separate from the dashboard layout.
+
+7. **Five custom node types with visual differentiation:** Each node type has a distinct color scheme (emerald/indigo/amber/blue/rose), dedicated icon, and type-specific preview content. The condition node has dual output handles (Yes/No) positioned at 30% and 70% for clear branching visuals.

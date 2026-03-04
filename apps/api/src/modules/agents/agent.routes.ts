@@ -16,4 +16,9 @@ router.post('/', requirePermission(PERMISSIONS.AGENT_CREATE), agentController.cr
 router.put('/:id', requirePermission(PERMISSIONS.AGENT_UPDATE), agentController.update);
 router.delete('/:id', requirePermission(PERMISSIONS.AGENT_DELETE), agentController.remove);
 
+// Action routes
+router.post('/:id/duplicate', requirePermission(PERMISSIONS.AGENT_CREATE), agentController.duplicate);
+router.post('/:id/publish', requirePermission(PERMISSIONS.AGENT_UPDATE), agentController.publish);
+router.post('/:id/archive', requirePermission(PERMISSIONS.AGENT_UPDATE), agentController.archive);
+
 export { router as agentRouter };

@@ -1,0 +1,281 @@
+# Phase 1: Core Agent Builder — Implementation Plan
+
+Build the functional agent builder: enhanced data model, configuration UI, visual workflow canvas, and knowledge base foundation.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Phase 1 is large (~4 weeks of scope). This plan covers **all sub-phases (1.1–1.5)** in detail. I will implement them sequentially. Each sub-phase builds on the previous one.
+
+> [!WARNING]
+> **Provider API keys needed later:** LLM key for agent testing (1.3+), Embedding key for knowledge ingestion (1.4). These aren't needed until those phases — the abstraction layer ships first.
+
+---
+
+## Proposed Changes
+
+### 1.1 — Agent Data Model Enhancement
+
+Extend the agents table and add agent templates support.
+
+#### [MODIFY] [index.ts](file:///d:/Projects/MERN/Vaanix/packages/database/src/schema/index.ts)
+
+- Add new columns to `agents` table:
+  - `systemPrompt` (text) — the core prompt for LLM
+  - `language` (varchar) — primary language code (en, hi, ta, etc.)
+  - `voiceId` (varchar) — TTS voice identifier
+  - `modelProvider` (varchar) — LLM provider key (openai, azure, google, etc.)
+  - `modelId` (varchar) — specific model (gpt-4o-mini, etc.)
+  - `temperature` (numeric) — LLM temperature setting
+  - `maxTokens` (integer) — max response tokens
+  - `tags` (text) — JSON array for tagging/filtering
+- Add `agentTemplates` table:
+  - [id](file:///d:/Projects/MERN/Vaanix/apps/web/src/components/shared/sidebar-nav.tsx#25-55), `name`, `description`, `category`, `templateData` (JSON), `isDefault`, timestamps
+- Add relations for templates
+
+---
+
+#### [MODIFY] [agent.repository.ts](file:///d:/Projects/MERN/Vaanix/apps/api/src/modules/agents/agent.repository.ts)
+
+- Support all new agent columns in create/update operations
+- Add `findByOrgIdWithPagination()` method with search/filter
+- Add `duplicate()` method for cloning agents
+
+#### [MODIFY] [agent.service.ts](file:///d:/Projects/MERN/Vaanix/apps/api/src/modules/agents/agent.service.ts)
+
+- Expand [create()](file:///d:/Projects/MERN/Vaanix/apps/api/src/modules/agents/agent.repository.ts#19-29) to accept all configuration fields
+- Add Zod validation schemas for agent create/update
+- Add `duplicate()`, `publish()`, `archive()` service methods
+- Add `createFromTemplate()` method
+
+#### [MODIFY] [agent.controller.ts](file:///d:/Projects/MERN/Vaanix/apps/api/src/modules/agents/agent.controller.ts)
+
+- Add `POST /:id/duplicate`, `POST /:id/publish`, `POST /:id/archive` endpoints
+- Add query params for pagination, search, status filter on list
+
+#### [MODIFY] [agent.routes.ts](file:///d:/Projects/MERN/Vaanix/apps/api/src/modules/agents/agent.routes.ts)
+
+- Register new routes for duplicate, publish, archive
+
+---
+
+### 1.1b — AI Provider Abstraction Layer (Plug & Play)
+
+> [!TIP]
+> **Design goal:** Swap LLM or embedding provider by changing **only [.env](file:///d:/Projects/MERN/Vaanix/.env) variables** — zero code changes. Add a new provider by implementing a single interface file.
+
+Create a new shared package `packages/ai-providers` with a registry-based architecture.
+
+#### [NEW] `packages/ai-providers/package.json`
+- New workspace package `@vaanix/ai-providers`
+- Dependencies: `openai`, `@google/generative-ai`, `@azure/openai` (as optional peers)
+
+#### [NEW] `packages/ai-providers/src/index.ts`
+- Re-exports all public interfaces, the registry, and helper functions
+
+#### [NEW] `packages/ai-providers/src/types.ts`
+- Unified interfaces:
+
+```typescript
+// --- LLM Provider ---
+interface LLMProvider {
+  id: string;                       // 'openai' | 'azure' | 'google' | ...
+  chat(params: ChatParams): Promise<ChatResponse>;
+  chatStream(params: ChatParams): AsyncIterable<ChatChunk>;
+}
+
+interface ChatParams {
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  maxTokens?: number;
+}
+
+// --- Embedding Provider ---
+interface EmbeddingProvider {
+  id: string;                       // 'openai' | 'cohere' | ...
+  embed(texts: string[]): Promise<number[][]>;
+  dimensions: number;
+}
+```
+
+#### [NEW] `packages/ai-providers/src/registry.ts`
+- **Provider registry** with auto-discovery from [.env](file:///d:/Projects/MERN/Vaanix/.env):
+
+```typescript
+// Reads LLM_PROVIDER and EMBEDDING_PROVIDER from env
+// Maps to the correct implementation automatically
+export function getLLMProvider(overrideId?: string): LLMProvider;
+export function getEmbeddingProvider(overrideId?: string): EmbeddingProvider;
+export function listAvailableProviders(): { llm: string[]; embedding: string[] };
+```
+
+#### [NEW] `packages/ai-providers/src/providers/openai.ts`
+- OpenAI implementation of `LLMProvider` + `EmbeddingProvider`
+- Reads `OPENAI_API_KEY` from env
+- Supports: gpt-4o, gpt-4o-mini, text-embedding-3-small, text-embedding-3-large
+
+#### [NEW] `packages/ai-providers/src/providers/google.ts`
+- Google Gemini implementation of `LLMProvider`
+- Reads `GOOGLE_AI_API_KEY` from env
+- Supports: gemini-2.0-flash, gemini-1.5-pro
+
+#### [NEW] `packages/ai-providers/src/providers/azure.ts`
+- Azure OpenAI implementation of `LLMProvider` + `EmbeddingProvider`
+- Reads `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` from env
+
+#### [.env](file:///d:/Projects/MERN/Vaanix/.env) additions:
+```env
+# --- AI Providers (plug & play) ---
+LLM_PROVIDER="openai"              # openai | google | azure
+LLM_MODEL="gpt-4o-mini"
+EMBEDDING_PROVIDER="openai"        # openai | azure
+EMBEDDING_MODEL="text-embedding-3-small"
+
+OPENAI_API_KEY="sk-..."
+# GOOGLE_AI_API_KEY="..."          # uncomment to enable
+# AZURE_OPENAI_API_KEY="..."       # uncomment to enable
+# AZURE_OPENAI_ENDPOINT="..."
+```
+
+#### How it works at runtime:
+1. Agent has `modelProvider` and `modelId` stored in DB — this is the **per-agent override**
+2. If agent has no override, falls back to `LLM_PROVIDER` / `LLM_MODEL` from [.env](file:///d:/Projects/MERN/Vaanix/.env)
+3. `getLLMProvider('openai')` returns the OpenAI implementation, `getLLMProvider('google')` returns Gemini, etc.
+4. Adding a new provider = create one file implementing `LLMProvider`, register it in the registry — done
+
+---
+
+### 1.2 — Agent Configuration UI
+
+Build the full agent management interface in the dashboard.
+
+#### [NEW] `apps/web/src/components/agents/agent-card.tsx`
+- Card component showing agent name, status badge, language, last updated
+- Actions: Edit, Duplicate, Delete
+- Status indicators: Draft (yellow), Published (green), Archived (gray)
+
+#### [NEW] `apps/web/src/components/agents/create-agent-dialog.tsx`
+- Modal dialog for creating a new agent
+- Fields: Name, Description, Language, Template selection
+- Uses react-hook-form + zod validation
+
+#### [MODIFY] [page.tsx](file:///d:/Projects/MERN/Vaanix/apps/web/src/app/dashboard/agents/page.tsx)
+- Replace static empty state with dynamic agents list
+- Grid of `AgentCard` components
+- Search bar, status filter tabs (All, Draft, Published, Archived)
+- "Create Agent" opens the dialog
+
+#### [NEW] `apps/web/src/app/dashboard/agents/[id]/page.tsx`
+- Agent detail/config page with tabbed interface
+- Tabs: General, Personality & Prompt, Voice & Language, Messages, Workflow
+- **Model Provider dropdown** — selects from available providers exposed by `@vaanix/ai-providers`
+
+#### [NEW] `apps/web/src/app/dashboard/agents/[id]/layout.tsx`
+- Layout with agent name header, back nav, status badge, action buttons (Publish/Test)
+
+#### [NEW] `apps/web/src/hooks/use-agents.ts`
+- Custom hook wrapping API calls for agents CRUD
+- Uses SWR or React Query for data fetching/caching
+
+#### [NEW] `apps/web/src/lib/validations/agent.ts`
+- Shared Zod schemas for agent form validation (client-side)
+
+---
+
+### 1.3 — Visual Builder Canvas (React Flow)
+
+Integrate React Flow as the visual workflow editor.
+
+#### [NEW] `apps/web/src/app/dashboard/agents/[id]/builder/page.tsx`
+- Full-width canvas page with React Flow
+- Toolbar: Add Node, Zoom controls, Save, Auto-layout
+- Side panel for node configuration
+
+#### [NEW] `apps/web/src/stores/builder-store.ts`
+- Zustand store for builder state (nodes, edges, selection, dirty flag)
+- Actions: addNode, removeNode, updateNode, connectEdge, save, load
+
+#### [NEW] `apps/web/src/components/builder/canvas.tsx`
+- React Flow wrapper with custom node types, edge types, minimap, controls
+
+#### [NEW] `apps/web/src/components/builder/nodes/start-node.tsx`
+- Entry point node (greeting message trigger)
+
+#### [NEW] `apps/web/src/components/builder/nodes/prompt-node.tsx`
+- LLM prompt node — configurable system message + knowledge context injection
+
+#### [NEW] `apps/web/src/components/builder/nodes/condition-node.tsx`
+- Conditional branching node (if/else on sentiment, keyword, intent)
+
+#### [NEW] `apps/web/src/components/builder/nodes/action-node.tsx`
+- Action node (transfer call, send SMS, capture lead, API call)
+
+#### [NEW] `apps/web/src/components/builder/nodes/end-node.tsx`
+- Flow termination node (goodbye, handoff)
+
+#### [NEW] `apps/web/src/components/builder/node-config-panel.tsx`
+- Side panel that appears when a node is selected
+- Renders config form based on node type
+
+---
+
+### 1.4 — Knowledge Base System
+
+Schema, API, and upload UI for the knowledge base.
+
+#### [MODIFY] [index.ts](file:///d:/Projects/MERN/Vaanix/packages/database/src/schema/index.ts)
+- Add `knowledgeBases` table (id, orgId, name, description, agentId, timestamps)
+- Add `knowledgeDocuments` table (id, knowledgeBaseId, fileName, fileType, fileSize, content, status, timestamps)
+- Add join table `agentKnowledgeBases` for many-to-many agent↔KB
+- Add relations
+
+#### [NEW] `apps/api/src/modules/knowledge/knowledge.routes.ts`
+- CRUD routes for knowledge bases and documents
+- `POST /knowledge-bases/:id/documents` for file upload
+
+#### [NEW] `apps/api/src/modules/knowledge/knowledge.controller.ts`
+#### [NEW] `apps/api/src/modules/knowledge/knowledge.service.ts`
+#### [NEW] `apps/api/src/modules/knowledge/knowledge.repository.ts`
+- Knowledge service uses `getEmbeddingProvider()` from `@vaanix/ai-providers` for document embedding
+
+#### [MODIFY] [app.ts](file:///d:/Projects/MERN/Vaanix/apps/api/src/app.ts)
+- Register knowledge routes
+
+#### [MODIFY] [page.tsx](file:///d:/Projects/MERN/Vaanix/apps/web/src/app/dashboard/knowledge/page.tsx)
+- Replace placeholder with functional knowledge base list
+- Add create KB dialog, document upload, status tracking
+
+---
+
+### 1.5 — Update Tracking Documents
+
+#### [MODIFY] [task_plan.md](file:///d:/Projects/MERN/Vaanix/task_plan.md)
+- Mark Phase 0 items as fully complete (auth tested, db:push done)
+- Update Phase 1 task statuses as work progresses
+
+#### [MODIFY] [progress.md](file:///d:/Projects/MERN/Vaanix/progress.md)
+- Update current status to Phase 1
+- Document what was built, architecture decisions
+
+#### [MODIFY] [findings.md](file:///d:/Projects/MERN/Vaanix/findings.md)
+- Add Phase 1 findings: provider abstraction pattern, React Flow integration, Zustand patterns
+
+---
+
+## Verification Plan
+
+### Build Verification
+- Run `pnpm build` after each sub-phase to ensure no type errors across all packages
+- Run `pnpm db:push` after schema changes to verify migration against Neon
+
+### Browser Testing
+After each sub-phase, I'll use the browser tool to verify:
+
+1. **After 1.1 + 1.2**: Agents list, create dialog, detail page with model provider dropdown
+2. **After 1.3**: React Flow canvas loads, nodes connect, workflow saves
+3. **After 1.4**: Knowledge base list, document upload, provider-based embedding
+
+### Manual Verification (User)
+- Full flow: Sign in → Create Agent → Pick model provider → Configure → Build workflow → Save
+- Provider swap test: Change `LLM_PROVIDER` in [.env](file:///d:/Projects/MERN/Vaanix/.env), restart, verify new provider is active

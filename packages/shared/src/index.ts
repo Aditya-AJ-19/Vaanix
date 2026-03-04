@@ -95,8 +95,8 @@ export function hasPermission(role: Role, permission: Permission): boolean {
     return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 }
 
-export function formatApiResponse<T>(data: T): ApiResponse<T> {
-    return { success: true, data };
+export function formatApiResponse<T>(data: T, meta?: PaginationMeta): ApiResponse<T> {
+    return { success: true, data, ...(meta ? { meta } : {}) };
 }
 
 export function formatApiError(code: string, message: string): ApiResponse {
