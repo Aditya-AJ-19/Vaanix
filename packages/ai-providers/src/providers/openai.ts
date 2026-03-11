@@ -22,8 +22,9 @@ const EMBEDDING_MODELS: Record<string, number> = {
 
 function getClient(): OpenAI {
     const apiKey = process.env.OPENAI_API_KEY;
+    const baseUrl = process.env.OPENAI_BASE_URL;
     if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
-    return new OpenAI({ apiKey });
+    return new OpenAI({ baseURL: baseUrl, apiKey });
 }
 
 export const openaiLLM: LLMProvider = {
@@ -32,7 +33,7 @@ export const openaiLLM: LLMProvider = {
     models: OPENAI_MODELS,
 
     isConfigured(): boolean {
-        return !! process.env.OPENAI_API_KEY;
+        return !!process.env.OPENAI_API_KEY;
     },
 
     async chat(params: ChatParams): Promise<ChatResponse> {

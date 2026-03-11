@@ -43,11 +43,11 @@
 - [x] Add auto-layout and minimap
 
 ## 1.4 Knowledge Base System (Schema + Upload)
-- [ ] Add `knowledgeBases` and `knowledgeDocuments` tables to schema
-- [ ] Create knowledge API module (controller, service, repository)
-- [ ] Build knowledge base UI page (list + upload)
-- [ ] Implement file upload API endpoint (local/S3 placeholder)
-- [ ] Link knowledge bases to agents
+- [x] Add `knowledgeBases` and `knowledgeDocuments` tables to schema
+- [x] Create knowledge API module (controller, service, repository)
+- [x] Build knowledge base UI page (list + upload)
+- [x] Implement file upload API endpoint (local/S3 placeholder)
+- [x] Link knowledge bases to agents
 
 ## 1.5 Update Tracking Documents
 - [ ] Update task_plan.md with Phase 0 completion + Phase 1 progress

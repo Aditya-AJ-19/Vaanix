@@ -21,6 +21,9 @@ export interface Agent {
     modelId: string | null;
     temperature: number | null;
     maxTokens: number | null;
+    responseStyle: string | null;
+    responseFormat: string | null;
+    customInstructions: string | null;
     workflowData: string | null;
     version: string;
     isPublished: boolean;

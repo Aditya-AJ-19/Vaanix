@@ -1,6 +1,6 @@
 # 📈 Vaanix — Progress Report
 
-> Current Status: **Phase 1 In Progress** (1.1 ✅ 1.1b ✅ 1.2 ✅ 1.3 ✅) | Next: 1.4 — Knowledge Base System
+> Current Status: **Phase 1 In Progress** (1.1 ✅ 1.1b ✅ 1.2 ✅ 1.3 ✅ 1.4 ✅) | Next: 1.5 — Update Tracking Documents
 
 ---
 
@@ -147,11 +147,6 @@ Total: 6/6 packages pass — 15.9s build time
 | **`use-agents.ts`** | ✅ | 178 lines — `useAgents` (list with filter/search) + `useAgent` (single), CRUD + publish/archive/duplicate |
 | **`validations/agent.ts`** | ✅ | 51 lines — Create + Update Zod schemas, LANGUAGES (10), MODEL_PROVIDERS (3), AGENT_STATUSES |
 
-### Next: 1.4 Knowledge Base System
-- Add `knowledgeBases` and `knowledgeDocuments` tables to schema
-- Create knowledge API module (controller, service, repository)
-- Build knowledge base UI page (list + upload)
-
 ### 1.3 Visual Builder Canvas (React Flow) ✅
 
 | Component | Status | Details |
@@ -168,16 +163,43 @@ Total: 6/6 packages pass — 15.9s build time
 | **`node-config-panel.tsx`** | ✅ | 201 lines — side panel with type-specific forms (greeting, system message, temperature slider, condition type/value, action type, end type/message), delete button |
 | **`auto-layout.ts`** | ✅ | 43 lines — dagre-based top-to-bottom auto-layout with configurable direction |
 
-### Build Status (After 1.1 + 1.1b + 1.2 + 1.3)
+### 1.4 Knowledge Base System ✅
 
-```
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Schema** | ✅ | `knowledgeBases`, `knowledgeDocuments`, `agentKnowledgeBases` tables already defined in Phase 1.1 |
+| **`knowledge.repository.ts`** | ✅ | 210 lines — CRUD for KBs/documents, agent↔KB linking with innerJoin, paginated listing |
+| **`knowledge.service.ts`** | ✅ | 168 lines — Zod validation schemas(create/update KB, upload doc, link agent), ownership verification |
+| **`knowledge.controller.ts`** | ✅ | 148 lines — Request handling following existing Controller→Service→Repository pattern |
+| **`knowledge.routes.ts`** | ✅ | 30 lines — CRUD + document management + agent linking, all behind `KNOWLEDGE_MANAGE` permission |
+| **`app.ts`** | ✅ | Registered knowledge routes at `/api/knowledge-bases` |
+| **`use-knowledge.ts`** | ✅ | 254 lines — `useKnowledgeBases` (list + CRUD) + `useKnowledgeBase` (single + documents + agent linking) |
+| **`knowledge/page.tsx`** | ✅ | 445 lines — Full KB management UI: grid list, create dialog, detail view, document table, file upload, manual entry, URL entry |
+
+### 1.4 Agent Advanced Configuration & Knowledge Base Enhancements ✅
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Agent Schema** | ✅ | Added `responseStyle`, `responseFormat`, `customInstructions` to `agents` table |
+| **Response UI** | ✅ | New `/dashboard/agents/[id]/response` tab for setting style and instructions |
+| **Agent Templates** | ✅ | 2-step creation dialog with template selection (Support, Sales, FAQ, etc.) |
+| **Knowledge Schema** | ✅ | Added `knowledge_chunks` table for pgvector storage with JSON fallback |
+| **`@vaanix/vector-store`** | ✅ | Abstract DB interface with built-in pgvector+cosine similarity implementation |
+| **Embedding Pipeline** | ✅ | `embedding.service.ts` for text chunking with overlap and parallel embeddings |
+| **Import Services** | ✅ | `scraper.service.ts` (HTML to text) and `gsheet.service.ts` (public CSV export) |
+| **Knowledge UI** | ✅ | Expanded upload dialog with Multi-Q&A (FAQ) and Google Sheets import tabs |
+
+### Build Status (After 1.1 + 1.1b + 1.2 + 1.3 + 1.4)
+
+```text
 ✓ @vaanix/shared        — tsc compiled
 ✓ @vaanix/database      — tsc compiled
 ✓ @vaanix/ai-providers  — tsc compiled
+✓ @vaanix/vector-store  — tsc compiled ← NEW
 ✓ @vaanix/ui            — tsc compiled
 ✓ @vaanix/api           — tsc compiled
-✓ @vaanix/web           — next build (4 static + 13 dynamic pages)
-Total: 6/6 packages pass — 14.8s build time
+✓ @vaanix/web           — next build (4 static + 14 dynamic pages)
+Total: 7/7 packages pass — 17.5s build time
 ```
 
 ---
@@ -186,11 +208,12 @@ Total: 6/6 packages pass — 14.8s build time
 
 | Metric | Value |
 |--------|-------|
-| Packages | 6 (4 libraries + 2 apps) |
-| Dependencies | 506 npm packages |
-| Build Time | 14.8s |
+| Packages | 7 (5 libraries + 2 apps) |
+| Dependencies | 512 npm packages |
+| Build Time | 17.5s |
 | Landing Page Size | 161 B |
 | Dashboard Page Size | 141 B each |
-| Builder Page Size | 75.7 kB |
+| Builder Page Size | 75.8 kB |
+| Knowledge Page Size | 4.88 kB |
 | First Load JS | 102 kB shared |
 

@@ -79,6 +79,10 @@ export const agents = pgTable('agents', {
     modelId: varchar('model_id', { length: 100 }), // gpt-4o-mini, gemini-2.0-flash, etc.
     temperature: real('temperature').default(0.7),
     maxTokens: integer('max_tokens').default(1024),
+    // --- Response Style ---
+    responseStyle: varchar('response_style', { length: 50 }).default('conversational'), // concise | detailed | conversational
+    responseFormat: varchar('response_format', { length: 50 }).default('text'), // text | structured | bullet_points
+    customInstructions: text('custom_instructions'), // additional instructions for response behavior
     // --- Workflow ---
     workflowData: text('workflow_data'), // JSON: React Flow serialization
     // --- Metadata ---
@@ -163,6 +167,28 @@ export const agentKnowledgeBases = pgTable('agent_knowledge_bases', {
         .notNull()
         .references(() => knowledgeBases.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ===========================
+// Knowledge Chunks (for vector embeddings)
+// ===========================
+export const knowledgeChunks = pgTable('knowledge_chunks', {
+    id: varchar('id', { length: 500 }).primaryKey(), // format: {documentId}_chunk_{index}
+    documentId: uuid('document_id')
+        .notNull()
+        .references(() => knowledgeDocuments.id, { onDelete: 'cascade' }),
+    knowledgeBaseId: uuid('knowledge_base_id')
+        .notNull()
+        .references(() => knowledgeBases.id, { onDelete: 'cascade' }),
+    content: text('content').notNull(),
+    embedding: text('embedding'), // JSON-encoded vector (MVP). Upgrade to VECTOR(1536) with pgvector extension.
+    chunkIndex: integer('chunk_index').notNull().default(0),
+    metadata: text('metadata'), // JSON string for extensible metadata
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+        .notNull()
+        .defaultNow()
+        .$onUpdate(() => new Date()),
 });
 
 // ===========================

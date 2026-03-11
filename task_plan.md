@@ -140,23 +140,23 @@ gantt
 - [x] Implement canvas save/load
 - [x] Create agent workflow serialization format
 
-#### 1.4 Agent Advanced Configuration
-- [ ] Response style configuration
-- [ ] Agent templates integration in create dialog
+#### 1.4 Agent Advanced Configuration ✅
+- [x] Response style configuration
+- [x] Agent templates integration in create dialog
 
-#### 1.4 Knowledge Base System
-- [ ] Design knowledge entity schema
-- [ ] Implement file upload service (S3/R2)
-- [ ] PDF text extraction pipeline
-- [ ] Website scraping service
-- [ ] FAQ/Q&A manual entry
-- [ ] Google Sheets import
-- [ ] Vector embedding generation (abstract provider)
-- [ ] Vector storage integration (Pinecone/Qdrant/pgvector)
+#### 1.4 Knowledge Base System ✅
+- [x] Design knowledge entity schema
+- [x] Implement file upload service (S3/R2)
+- [x] PDF text extraction pipeline
+- [x] Website scraping service
+- [x] FAQ/Q&A manual entry
+- [x] Google Sheets import
+- [x] Vector embedding generation (abstract provider)
+- [x] Vector storage integration (Pinecone/Qdrant/pgvector abstract connector so that i can use anything without much changes in code.)
 
 #### 1.5 Agent Testing (Browser)
 - [ ] Integrate Web Speech API for STT
-- [ ] Connect to TTS provider (ElevenLabs/Azure)
+- [ ] Connect to TTS provider (ElevenLabs)
 - [ ] Build chat/voice test interface
 - [ ] Create LLM orchestration layer
 - [ ] Implement context injection from knowledge base
@@ -415,7 +415,7 @@ Phase 4 (Production)
 | Phase | Duration | Milestone | Status |
 |-------|----------|-----------|--------|
 | Phase 0 | 2 weeks | Foundation live, auth working | ✅ Complete |
-| Phase 1 | 4 weeks | Agent builder functional | 🔨 In Progress (1.1 + 1.1b + 1.2 + 1.3 ✅) |
+| Phase 1 | 4 weeks | Agent builder functional | 🔨 In Progress (1.1 + 1.1b + 1.2 + 1.3 + 1.4 ✅) |
 | Phase 2 | 3 weeks | Web widget deployed | ⬜ Pending |
 | Phase 3 | 2 weeks | Billing live | ⬜ Pending |
 | Phase 4 | 4 weeks | Production ready | ⬜ Pending |

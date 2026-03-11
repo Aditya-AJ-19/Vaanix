@@ -513,6 +513,7 @@ Target end-to-end: < 2 seconds
 | AI Provider Abstraction | Registry + .env discovery | High | ✅ Phase 1.1b |
 | Agent Config UI | Tabbed interface + validation | High | ✅ Phase 1.2 |
 | Visual Builder Canvas | React Flow + Zustand + dagre | High | ✅ Phase 1.3 |
+| Knowledge Base System | Schema + API + UI + agent linking | High | ✅ Phase 1.4 |
 
 ---
 
@@ -553,3 +554,21 @@ Target end-to-end: < 2 seconds
 6. **Full-screen builder overlay:** Builder layout uses `fixed inset-0 z-50` to take over the entire viewport, providing a distraction-free canvas editing experience separate from the dashboard layout.
 
 7. **Five custom node types with visual differentiation:** Each node type has a distinct color scheme (emerald/indigo/amber/blue/rose), dedicated icon, and type-specific preview content. The condition node has dual output handles (Yes/No) positioned at 30% and 70% for clear branching visuals.
+
+### 1.4 Knowledge Base System — Technical Choices
+
+1. **Schema already defined in 1.1:** The `knowledgeBases`, `knowledgeDocuments`, and `agentKnowledgeBases` tables were already created during Phase 1.1 data model enhancement. Phase 1.4 added the API module and frontend UI to make them functional.
+
+2. **Document status lifecycle:** Documents go through `pending → processing → ready | failed` states. Currently, documents with `content` provided at upload time are set directly to `ready`. The `pending` state is reserved for future async processing (text extraction, chunking, embedding via `@vaanix/ai-providers`).
+
+3. **File upload as JSON body (MVP approach):** File upload currently accepts text content via JSON body (`content` field) rather than multipart form data. Text files are read client-side via `file.text()` and sent as JSON. This is intentional for MVP — full binary file upload with S3/R2 storage will be added when the processing pipeline is built.
+
+4. **Agent ↔ KB many-to-many linking:** The `agentKnowledgeBases` join table allows multiple agents to share the same knowledge base, and each agent can have multiple KBs. The API provides `/api/knowledge-bases/:id/agents` endpoints for linking/unlinking, with inner joins for KB listing per agent.
+
+5. **Detail view as client-side state (no sub-routes):** Unlike the agent detail page which uses Next.js `[id]` routes, the knowledge base detail view uses client-side state (`selectedKb`) within the same page. This keeps the page simpler — KBs don't have the same tab complexity as agents. Can be refactored to sub-routes if the KB detail view grows.
+
+6. **KNOWLEDGE_MANAGE permission:** All knowledge API endpoints use the single `KNOWLEDGE_MANAGE` permission (already defined in `@vaanix/shared`). This is simpler than the agent module's granular `CREATE/READ/UPDATE/DELETE` split because KB management is a single coherent feature that doesn't need separate read-only access.
+
+7. **Vector Storage Strategy (ADR-006):** High-scale vector search requires specialized databases, but adding Pinecone/Qdrant now introduces infrastructure dependencies. Decision: Created an abstract `@vaanix/vector-store` package. Phase 1 uses a `pgvector` compatible implementation as MVP (storing embeddings as JSON arrays with JS cosine similarity). Rationale: Keeps infrastructure simple for the local dev environment while allowing a swap to dedicated vector DBs later using the `.env` `VECTOR_STORE_PROVIDER` injection.
+
+8. **Synchronous Knowledge Ingestion MVP (ADR-007):** URL scraping and Google Sheets extraction can be time-consuming. Decision: Handled synchronously in Phase 1 within the `/upload` API endpoint using native Node `fetch`. Rationale: Keeps deployment simple without needing BullMQ right away. Will refactor to event-driven processing via BullMQ in Phase 3 when advanced scaling is required.
