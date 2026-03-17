@@ -4,6 +4,11 @@ import { scrapeUrl } from './scraper.service';
 import { importGoogleSheet } from './gsheet.service';
 import type { KnowledgeBaseListParams } from './knowledge.repository';
 import { AppError } from '../../core/error.middleware';
+import { getEmbeddingProvider } from '@vaanix/ai-providers';
+import { getVectorStore } from '@vaanix/vector-store';
+import { db } from '../../core/db';
+import { embedDocument } from './embedding.service';
+import { logger } from '../../core/logger';
 
 // ===========================
 // Validation Schemas
@@ -82,6 +87,15 @@ export const knowledgeService = {
         if (!existing) {
             throw new AppError(404, 'KB_NOT_FOUND', 'Knowledge base not found');
         }
+
+        // Clean up vector chunks before deleting the KB
+        try {
+            const vectorStore = getVectorStore(db);
+            await vectorStore.deleteByKnowledgeBase(id);
+        } catch (err) {
+            console.error(`Failed to clean up vector chunks for KB ${id}:`, err);
+        }
+
         return knowledgeRepository.removeKnowledgeBase(id, orgId);
     },
 
@@ -106,7 +120,7 @@ export const knowledgeService = {
         const validated = uploadDocumentSchema.parse(data);
 
         let content = validated.content ?? null;
-        let status = content ? 'ready' : 'pending';
+        let status = content ? 'processing' : 'pending';
         let errorMessage: string | null = null;
 
         // --- Auto-scrape URL content ---
@@ -114,7 +128,7 @@ export const knowledgeService = {
             try {
                 const scraped = await scrapeUrl(validated.sourceUrl);
                 content = `# ${scraped.title}\n\n${scraped.description ? scraped.description + '\n\n' : ''}${scraped.content}`;
-                status = 'ready';
+                status = 'processing';
             } catch (err: any) {
                 status = 'failed';
                 errorMessage = err.message ?? 'Failed to scrape URL';
@@ -126,7 +140,7 @@ export const knowledgeService = {
             try {
                 const sheet = await importGoogleSheet(validated.sourceUrl);
                 content = `# Google Sheet Import (${sheet.rowCount} rows)\n\n${sheet.content}`;
-                status = 'ready';
+                status = 'processing';
             } catch (err: any) {
                 status = 'failed';
                 errorMessage = err.message ?? 'Failed to import Google Sheet';
@@ -147,6 +161,29 @@ export const knowledgeService = {
         // If scraping/import failed, update error message
         if (errorMessage) {
             await knowledgeRepository.updateDocument(doc.id, { errorMessage });
+        } else if (content) {
+            // Kick off the embedding pipeline in the background
+            void (async () => {
+                try {
+                    const embeddingProvider = getEmbeddingProvider();
+                    // Verify the embedding provider is configured before attempting to embed
+                    if (!embeddingProvider.isConfigured()) {
+                        logger.error(`Embedding provider "${embeddingProvider.id}" is not configured.`);
+                        throw new Error(
+                            `Embedding provider "${embeddingProvider.id}" is not configured. ` +
+                            `Please set the required API key (e.g. OPENAI_API_KEY or GOOGLE_AI_API_KEY).`,
+                        );
+                    }
+                    const vectorStore = getVectorStore(db);
+                    await embedDocument(doc.id, embeddingProvider, vectorStore);
+                } catch (err) {
+                    logger.error(`Failed to initialize embedding for document ${doc.id}:`);
+                    await knowledgeRepository.updateDocument(doc.id, {
+                        status: 'failed',
+                        errorMessage: err instanceof Error ? err.message : 'Unknown embedding initialization error',
+                    });
+                }
+            })();
         }
 
         return doc;
@@ -162,6 +199,14 @@ export const knowledgeService = {
         const doc = await knowledgeRepository.findDocumentById(docId);
         if (!doc || doc.knowledgeBaseId !== kbId) {
             throw new AppError(404, 'DOCUMENT_NOT_FOUND', 'Document not found');
+        }
+
+        // Clean up vector chunks before deleting the document
+        try {
+            const vectorStore = getVectorStore(db);
+            await vectorStore.deleteByDocument(docId);
+        } catch (err) {
+            console.error(`Failed to clean up vector chunks for document ${docId}:`, err);
         }
 
         return knowledgeRepository.removeDocument(docId);

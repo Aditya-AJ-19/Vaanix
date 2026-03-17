@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import type { VectorStore, VectorDocument, VectorQuery, VectorResult } from './types';
 
 // ===========================
@@ -31,25 +32,19 @@ export class PgVectorStore implements VectorStore {
     async upsert(documents: VectorDocument[]): Promise<void> {
         if (!this.db) throw new Error('Database not configured');
 
-        // Use raw SQL for flexibility with the knowledge_chunks table
+        // Use Drizzle sql tagged template for safe parameterized queries
         for (const doc of documents) {
+            const embeddingJson = JSON.stringify(doc.embedding);
+            const metadataJson = JSON.stringify(doc.metadata);
+
             await this.db.execute(
-                `INSERT INTO knowledge_chunks (id, document_id, knowledge_base_id, content, embedding, chunk_index, metadata)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                sql`INSERT INTO knowledge_chunks (id, document_id, knowledge_base_id, content, embedding, chunk_index, metadata)
+                 VALUES (${doc.id}, ${doc.metadata.documentId}, ${doc.metadata.knowledgeBaseId}, ${doc.content}, ${embeddingJson}, ${doc.metadata.chunkIndex}, ${metadataJson})
                  ON CONFLICT (id) DO UPDATE SET
                    content = EXCLUDED.content,
                    embedding = EXCLUDED.embedding,
                    metadata = EXCLUDED.metadata,
                    updated_at = NOW()`,
-                [
-                    doc.id,
-                    doc.metadata.documentId,
-                    doc.metadata.knowledgeBaseId,
-                    doc.content,
-                    JSON.stringify(doc.embedding),
-                    doc.metadata.chunkIndex,
-                    JSON.stringify(doc.metadata),
-                ],
             );
         }
     }
@@ -57,23 +52,28 @@ export class PgVectorStore implements VectorStore {
     async query(query: VectorQuery): Promise<VectorResult[]> {
         if (!this.db) throw new Error('Database not configured');
 
+        // Build the SQL dynamically using Drizzle's sql template
         // Fetch candidate chunks filtered by metadata
-        let sql = `SELECT id, content, embedding, metadata FROM knowledge_chunks WHERE 1=1`;
-        const params: unknown[] = [];
-        let paramIdx = 1;
+        const conditions: ReturnType<typeof sql>[] = [];
 
         if (query.filter?.knowledgeBaseId) {
-            sql += ` AND knowledge_base_id = $${paramIdx++}`;
-            params.push(query.filter.knowledgeBaseId);
+            conditions.push(sql`knowledge_base_id = ${query.filter.knowledgeBaseId}`);
         }
         if (query.filter?.documentId) {
-            sql += ` AND document_id = $${paramIdx++}`;
-            params.push(query.filter.documentId);
+            conditions.push(sql`document_id = ${query.filter.documentId}`);
         }
 
-        sql += ` LIMIT 1000`; // Cap candidates for in-memory scoring
+        let whereClause = sql`1=1`;
+        for (const cond of conditions) {
+            whereClause = sql`${whereClause} AND ${cond}`;
+        }
 
-        const rows: any[] = await this.db.execute(sql, params);
+        const result = await this.db.execute(
+            sql`SELECT id, content, embedding, metadata FROM knowledge_chunks WHERE ${whereClause} LIMIT 1000`,
+        );
+
+        // Drizzle Neon HTTP execute returns { rows: [...] }
+        const rows: any[] = result.rows ?? result;
 
         // Calculate cosine similarity in-memory (MVP approach)
         const results: VectorResult[] = rows.map((row: any) => {
@@ -103,18 +103,19 @@ export class PgVectorStore implements VectorStore {
         if (!this.db) throw new Error('Database not configured');
         if (ids.length === 0) return;
 
-        const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
-        await this.db.execute(`DELETE FROM knowledge_chunks WHERE id IN (${placeholders})`, ids);
+        // Build IN clause using Drizzle sql template
+        const idList = sql.join(ids.map((id) => sql`${id}`), sql`, `);
+        await this.db.execute(sql`DELETE FROM knowledge_chunks WHERE id IN (${idList})`);
     }
 
     async deleteByDocument(documentId: string): Promise<void> {
         if (!this.db) throw new Error('Database not configured');
-        await this.db.execute(`DELETE FROM knowledge_chunks WHERE document_id = $1`, [documentId]);
+        await this.db.execute(sql`DELETE FROM knowledge_chunks WHERE document_id = ${documentId}`);
     }
 
     async deleteByKnowledgeBase(knowledgeBaseId: string): Promise<void> {
         if (!this.db) throw new Error('Database not configured');
-        await this.db.execute(`DELETE FROM knowledge_chunks WHERE knowledge_base_id = $1`, [knowledgeBaseId]);
+        await this.db.execute(sql`DELETE FROM knowledge_chunks WHERE knowledge_base_id = ${knowledgeBaseId}`);
     }
 }
 

@@ -120,7 +120,9 @@ export async function embedDocument(
         }
 
         // 3. Generate embeddings (batch all chunks at once)
-        const embeddings = await embeddingProvider.embed(chunks);
+        // Use EMBEDDING_MODEL env var if set; otherwise provider uses its own defaultModel
+        const embeddingModel = process.env.EMBEDDING_MODEL || undefined;
+        const embeddings = await embeddingProvider.embed(chunks, embeddingModel);
 
         // 4. Store chunks + embeddings
         const vectorDocs = chunks.map((content, index) => ({

@@ -21,7 +21,8 @@
     "@vaanix/database": "workspace:*",
     "@vaanix/ai-providers": "workspace:*",
     "dotenv": "^16.4.7",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "@vaanix/vector-store": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

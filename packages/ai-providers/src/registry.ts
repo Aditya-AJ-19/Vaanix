@@ -2,7 +2,7 @@ import type { LLMProvider, EmbeddingProvider, ProviderInfo } from './types';
 
 // Import all provider implementations
 import { openaiLLM, openaiEmbedding } from './providers/openai';
-import { googleLLM } from './providers/google';
+import { googleLLM, googleEmbedding } from './providers/google';
 import { azureLLM, azureEmbedding } from './providers/azure';
 
 // ===========================
@@ -18,6 +18,7 @@ llmProviders.set('google', googleLLM);
 llmProviders.set('azure', azureLLM);
 
 embeddingProviders.set('openai', openaiEmbedding);
+embeddingProviders.set('google', googleEmbedding);
 embeddingProviders.set('azure', azureEmbedding);
 
 // ===========================

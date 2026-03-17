@@ -141,7 +141,7 @@ export const knowledgeDocuments = pgTable('knowledge_documents', {
         .notNull()
         .references(() => knowledgeBases.id, { onDelete: 'cascade' }),
     fileName: varchar('file_name', { length: 500 }).notNull(),
-    fileType: varchar('file_type', { length: 50 }).notNull(), // pdf, txt, csv, url, manual
+    fileType: varchar('file_type', { length: 50 }).notNull(), // pdf, txt, csv, url, manual, faq, gsheet
     fileSize: integer('file_size'), // bytes
     sourceUrl: text('source_url'), // for URL-scraped content
     content: text('content'), // extracted text content

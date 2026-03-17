@@ -23,5 +23,5 @@ export {
 
 // Re-export individual providers for direct access if needed
 export { openaiLLM, openaiEmbedding } from './providers/openai';
-export { googleLLM } from './providers/google';
+export { googleLLM, googleEmbedding } from './providers/google';
 export { azureLLM, azureEmbedding } from './providers/azure';

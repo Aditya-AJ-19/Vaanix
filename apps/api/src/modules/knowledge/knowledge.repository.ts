@@ -3,6 +3,7 @@ import {
     knowledgeBases,
     knowledgeDocuments,
     agentKnowledgeBases,
+    agents,
     eq,
     and,
     desc,
@@ -222,8 +223,15 @@ export const knowledgeRepository = {
         return db
             .select({
                 agentId: agentKnowledgeBases.agentId,
+                agent: {
+                    id: agents.id,
+                    name: agents.name,
+                    description: agents.description,
+                    status: agents.status,
+                },
             })
             .from(agentKnowledgeBases)
+            .innerJoin(agents, eq(agentKnowledgeBases.agentId, agents.id))
             .where(eq(agentKnowledgeBases.knowledgeBaseId, knowledgeBaseId));
     },
 };

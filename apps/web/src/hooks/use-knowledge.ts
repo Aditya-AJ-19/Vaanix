@@ -33,6 +33,17 @@ export interface KnowledgeDocument {
     updatedAt: string;
 }
 
+export interface LinkedAgent {
+    agentId: string;
+    knowledgeBaseId: string;
+    agent: {
+        id: string;
+        name: string;
+        description: string | null;
+        status: string;
+    };
+}
+
 interface KnowledgeBasesResponse {
     success: boolean;
     data: KnowledgeBase[];
@@ -52,6 +63,11 @@ interface DocumentsResponse {
 interface DocumentResponse {
     success: boolean;
     data: KnowledgeDocument;
+}
+
+interface LinkedAgentsResponse {
+    success: boolean;
+    data: LinkedAgent[];
 }
 
 // ===========================
@@ -154,6 +170,7 @@ export function useKnowledgeBase(id: string) {
     const { getToken } = useAuth();
     const [kb, setKb] = useState<KnowledgeBase | null>(null);
     const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+    const [linkedAgents, setLinkedAgents] = useState<LinkedAgent[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -162,20 +179,25 @@ export function useKnowledgeBase(id: string) {
             setLoading(true);
             setError(null);
             const token = await getToken();
-            const [kbRes, docsRes] = await Promise.all([
+            const [kbRes, docsRes, agentsRes] = await Promise.all([
                 apiClient<KnowledgeBaseResponse>(`/api/knowledge-bases/${id}`, {
                     token: token ?? undefined,
                 }),
                 apiClient<DocumentsResponse>(`/api/knowledge-bases/${id}/documents`, {
                     token: token ?? undefined,
                 }),
+                apiClient<LinkedAgentsResponse>(`/api/knowledge-bases/${id}/agents`, {
+                    token: token ?? undefined,
+                }),
             ]);
             setKb(kbRes.data);
             setDocuments(docsRes.data ?? []);
+            setLinkedAgents(agentsRes.data ?? []);
         } catch (err: any) {
             setError(err.message ?? 'Failed to load knowledge base');
             setKb(null);
             setDocuments([]);
+            setLinkedAgents([]);
         } finally {
             setLoading(false);
         }
@@ -230,6 +252,7 @@ export function useKnowledgeBase(id: string) {
                 body: JSON.stringify({ agentId }),
                 token: token ?? undefined,
             });
+            await fetchKb();
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to link agent');
         }
@@ -242,6 +265,7 @@ export function useKnowledgeBase(id: string) {
                 method: 'DELETE',
                 token: token ?? undefined,
             });
+            await fetchKb();
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to unlink agent');
         }
@@ -250,6 +274,7 @@ export function useKnowledgeBase(id: string) {
     return {
         kb,
         documents,
+        linkedAgents,
         loading,
         error,
         refetch: fetchKb,

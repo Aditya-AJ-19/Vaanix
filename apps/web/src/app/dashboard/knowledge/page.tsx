@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useKnowledgeBases, useKnowledgeBase } from '@/hooks/use-knowledge';
+import { useAgents } from '@/hooks/use-agents';
 import { toast } from 'sonner';
 
 const FILE_TYPE_ICONS: Record<string, string> = {
@@ -10,6 +11,8 @@ const FILE_TYPE_ICONS: Record<string, string> = {
     csv: '📊',
     url: '🔗',
     manual: '✏️',
+    faq: '❓',
+    gsheet: '📊',
 };
 
 const FILE_TYPE_COLORS: Record<string, string> = {
@@ -18,6 +21,8 @@ const FILE_TYPE_COLORS: Record<string, string> = {
     csv: 'bg-green-50 text-green-700 border-green-200',
     url: 'bg-purple-50 text-purple-700 border-purple-200',
     manual: 'bg-amber-50 text-amber-700 border-amber-200',
+    faq: 'bg-teal-50 text-teal-700 border-teal-200',
+    gsheet: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 export default function KnowledgePage() {
@@ -216,8 +221,14 @@ export default function KnowledgePage() {
 // Knowledge Base Detail View
 // ===========================
 
+type DetailTab = 'documents' | 'agents';
+
 function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => void }) {
-    const { kb, documents, loading, error, uploadDocument, removeDocument } = useKnowledgeBase(kbId);
+    const { kb, documents, linkedAgents, loading, error, uploadDocument, removeDocument, linkAgent, unlinkAgent } =
+        useKnowledgeBase(kbId);
+
+    // Tab state
+    const [activeTab, setActiveTab] = useState<DetailTab>('documents');
 
     // Upload state
     const [showUpload, setShowUpload] = useState(false);
@@ -228,6 +239,18 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
     const [uploading, setUploading] = useState(false);
     const [faqPairs, setFaqPairs] = useState([{ question: '', answer: '' }]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Agent linking state
+    const [showLinkAgent, setShowLinkAgent] = useState(false);
+    const [agentSearch, setAgentSearch] = useState('');
+    const [linking, setLinking] = useState<string | null>(null); // agentId being linked
+    const [unlinking, setUnlinking] = useState<string | null>(null); // agentId being unlinked
+    const { agents, loading: agentsLoading } = useAgents();
+
+    const linkedAgentIds = new Set(linkedAgents.map((la) => la.agentId));
+    const availableAgents = agents.filter(
+        (a) => !linkedAgentIds.has(a.id) && a.name.toLowerCase().includes(agentSearch.toLowerCase()),
+    );
 
     const addFaqPair = () => setFaqPairs((prev) => [...prev, { question: '', answer: '' }]);
     const removeFaqPair = (idx: number) => setFaqPairs((prev) => prev.filter((_, i) => i !== idx));
@@ -325,6 +348,31 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
         }
     };
 
+    const handleLinkAgent = async (agentId: string) => {
+        try {
+            setLinking(agentId);
+            await linkAgent(agentId);
+            toast.success('Agent connected');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to connect agent');
+        } finally {
+            setLinking(null);
+        }
+    };
+
+    const handleUnlinkAgent = async (agentId: string, agentName: string) => {
+        if (!confirm(`Disconnect agent "${agentName}" from this knowledge base?`)) return;
+        try {
+            setUnlinking(agentId);
+            await unlinkAgent(agentId);
+            toast.success('Agent disconnected');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to disconnect agent');
+        } finally {
+            setUnlinking(null);
+        }
+    };
+
     const statusBadge = (status: string) => {
         const colors: Record<string, string> = {
             pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -339,6 +387,16 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                 {status}
             </span>
         );
+    };
+
+    const agentStatusDot = (status: string) => {
+        const colors: Record<string, string> = {
+            active: 'bg-green-400',
+            inactive: 'bg-surface-300',
+            draft: 'bg-amber-400',
+            archived: 'bg-surface-300',
+        };
+        return <span className={`inline-block w-2 h-2 rounded-full ${colors[status] || 'bg-surface-300'}`} />;
     };
 
     if (loading) {
@@ -368,27 +426,37 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                             <p className="text-surface-500 mt-1">{kb.description}</p>
                         )}
                     </div>
-                    <div className="flex gap-2">
+                    {activeTab === 'documents' && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowUpload(true)}
+                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                            >
+                                + Add Document
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".txt,.csv,.pdf"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="px-4 py-2 border border-surface-200 text-surface-700 rounded-lg hover:bg-surface-50 transition-colors text-sm font-medium"
+                            >
+                                📎 Upload File
+                            </button>
+                        </div>
+                    )}
+                    {activeTab === 'agents' && (
                         <button
-                            onClick={() => setShowUpload(true)}
+                            onClick={() => setShowLinkAgent(true)}
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
                         >
-                            + Add Document
+                            + Connect Agent
                         </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".txt,.csv,.pdf"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                        />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 border border-surface-200 text-surface-700 rounded-lg hover:bg-surface-50 transition-colors text-sm font-medium"
-                        >
-                            📎 Upload File
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -398,132 +466,230 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                 </div>
             )}
 
-            {/* Documents List */}
-            {documents.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 shadow-sm border border-surface-200 text-center">
-                    <div className="text-4xl mb-4">📄</div>
-                    <h3 className="text-lg font-semibold text-surface-900 mb-2">No documents yet</h3>
-                    <p className="text-surface-500 text-sm mb-6">
-                        Upload files or add content manually to build this knowledge base.
-                    </p>
-                    <div className="flex justify-center gap-3">
-                        <button
-                            onClick={() => setShowUpload(true)}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            {/* Tabs */}
+            <div className="flex gap-1 mb-6 border-b border-surface-200">
+                {([
+                    { key: 'documents' as DetailTab, label: '📄 Documents', count: documents.length },
+                    { key: 'agents' as DetailTab, label: '🤖 Connected Agents', count: linkedAgents.length },
+                ] as const).map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 -mb-px ${
+                            activeTab === tab.key
+                                ? 'border-primary-600 text-primary-600'
+                                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+                        }`}
+                    >
+                        {tab.label}
+                        <span
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold ${
+                                activeTab === tab.key
+                                    ? 'bg-primary-100 text-primary-700'
+                                    : 'bg-surface-100 text-surface-500'
+                            }`}
                         >
-                            Add Manual Entry
-                        </button>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 border border-surface-200 text-surface-700 rounded-lg hover:bg-surface-50 transition-colors text-sm font-medium"
-                        >
-                            Upload File
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-surface-100">
-                                <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Document
-                                </th>
-                                <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Type
-                                </th>
-                                <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Status
-                                </th>
-                                <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Size
-                                </th>
-                                <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Added
-                                </th>
-                                <th className="text-right px-5 py-3 text-xs font-medium text-surface-500 uppercase">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {documents.map((doc) => (
-                                <tr
-                                    key={doc.id}
-                                    className="border-b border-surface-50 hover:bg-surface-25 transition-colors"
+                            {tab.count}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* ── Documents Tab ── */}
+            {activeTab === 'documents' && (
+                <>
+                    {documents.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-12 shadow-sm border border-surface-200 text-center">
+                            <div className="text-4xl mb-4">📄</div>
+                            <h3 className="text-lg font-semibold text-surface-900 mb-2">No documents yet</h3>
+                            <p className="text-surface-500 text-sm mb-6">
+                                Upload files or add content manually to build this knowledge base.
+                            </p>
+                            <div className="flex justify-center gap-3">
+                                <button
+                                    onClick={() => setShowUpload(true)}
+                                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
                                 >
-                                    <td className="px-5 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <span>{FILE_TYPE_ICONS[doc.fileType] || '📄'}</span>
-                                            <span className="text-sm font-medium text-surface-900 truncate max-w-[200px]">
-                                                {doc.fileName}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-3">
-                                        <span
-                                            className={`px-2 py-0.5 rounded text-xs font-medium border ${FILE_TYPE_COLORS[doc.fileType] || 'bg-surface-50 text-surface-600 border-surface-200'}`}
+                                    Add Manual Entry
+                                </button>
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="px-4 py-2 border border-surface-200 text-surface-700 rounded-lg hover:bg-surface-50 transition-colors text-sm font-medium"
+                                >
+                                    Upload File
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-surface-200 overflow-hidden">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-surface-100">
+                                        <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Document
+                                        </th>
+                                        <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Type
+                                        </th>
+                                        <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Status
+                                        </th>
+                                        <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Size
+                                        </th>
+                                        <th className="text-left px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Added
+                                        </th>
+                                        <th className="text-right px-5 py-3 text-xs font-medium text-surface-500 uppercase">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {documents.map((doc) => (
+                                        <tr
+                                            key={doc.id}
+                                            className="border-b border-surface-50 hover:bg-surface-25 transition-colors"
                                         >
-                                            {doc.fileType.toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-3">{statusBadge(doc.status)}</td>
-                                    <td className="px-5 py-3 text-sm text-surface-500">
-                                        {doc.fileSize
-                                            ? doc.fileSize < 1024
-                                                ? `${doc.fileSize} B`
-                                                : doc.fileSize < 1048576
-                                                    ? `${(doc.fileSize / 1024).toFixed(1)} KB`
-                                                    : `${(doc.fileSize / 1048576).toFixed(1)} MB`
-                                            : '—'}
-                                    </td>
-                                    <td className="px-5 py-3 text-sm text-surface-500">
-                                        {new Date(doc.createdAt).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-5 py-3 text-right">
-                                        <button
-                                            onClick={() => handleRemoveDoc(doc.id, doc.fileName)}
-                                            className="text-surface-400 hover:text-red-500 transition-colors text-sm"
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span>{FILE_TYPE_ICONS[doc.fileType] || '📄'}</span>
+                                                    <span className="text-sm font-medium text-surface-900 truncate max-w-[200px]">
+                                                        {doc.fileName}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <span
+                                                    className={`px-2 py-0.5 rounded text-xs font-medium border ${FILE_TYPE_COLORS[doc.fileType] || 'bg-surface-50 text-surface-600 border-surface-200'}`}
+                                                >
+                                                    {doc.fileType.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3">{statusBadge(doc.status)}</td>
+                                            <td className="px-5 py-3 text-sm text-surface-500">
+                                                {doc.fileSize
+                                                    ? doc.fileSize < 1024
+                                                        ? `${doc.fileSize} B`
+                                                        : doc.fileSize < 1048576
+                                                            ? `${(doc.fileSize / 1024).toFixed(1)} KB`
+                                                            : `${(doc.fileSize / 1048576).toFixed(1)} MB`
+                                                    : '—'}
+                                            </td>
+                                            <td className="px-5 py-3 text-sm text-surface-500">
+                                                {new Date(doc.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-5 py-3 text-right">
+                                                <button
+                                                    onClick={() => handleRemoveDoc(doc.id, doc.fileName)}
+                                                    className="text-surface-400 hover:text-red-500 transition-colors text-sm"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </>
             )}
 
-            {/* Upload Dialog */}
-            {showUpload && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
-                        <h2 className="text-lg font-semibold text-surface-900 mb-4">Add Document</h2>
-
-                        {/* Type Tabs */}
-                        <div className="flex gap-1 mb-4 bg-surface-100 p-1 rounded-lg">
-                            {[
-                                { key: 'manual' as const, label: '✏️ Manual' },
-                                { key: 'url' as const, label: '🔗 URL' },
-                                { key: 'faq' as const, label: '❓ FAQ' },
-                                { key: 'gsheet' as const, label: '📊 Sheets' },
-                            ].map((tab) => (
-                                <button
-                                    key={tab.key}
-                                    onClick={() => setUploadType(tab.key)}
-                                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${uploadType === tab.key
-                                        ? 'bg-white text-surface-900 shadow-sm'
-                                        : 'text-surface-500 hover:text-surface-700'
-                                        }`}
+            {/* ── Connected Agents Tab ── */}
+            {activeTab === 'agents' && (
+                <>
+                    {linkedAgents.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-12 shadow-sm border border-surface-200 text-center">
+                            <div className="text-4xl mb-4">🤖</div>
+                            <h3 className="text-lg font-semibold text-surface-900 mb-2">No agents connected</h3>
+                            <p className="text-surface-500 text-sm mb-6">
+                                Connect agents to this knowledge base so they can answer questions using this content.
+                            </p>
+                            <button
+                                onClick={() => setShowLinkAgent(true)}
+                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                            >
+                                Connect Your First Agent
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {linkedAgents.map((la) => (
+                                <div
+                                    key={la.agentId}
+                                    className="bg-white rounded-xl px-5 py-4 shadow-sm border border-surface-200 flex items-center justify-between group"
                                 >
-                                    {tab.label}
-                                </button>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-lg flex-shrink-0">
+                                            🤖
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-surface-900 text-sm">
+                                                    {la.agent.name}
+                                                </span>
+                                                {agentStatusDot(la.agent.status)}
+                                                <span className="text-xs text-surface-400 capitalize">
+                                                    {la.agent.status}
+                                                </span>
+                                            </div>
+                                            {la.agent.description && (
+                                                <p className="text-xs text-surface-500 mt-0.5 line-clamp-1">
+                                                    {la.agent.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleUnlinkAgent(la.agentId, la.agent.name)}
+                                        disabled={unlinking === la.agentId}
+                                        className="text-sm text-surface-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                    >
+                                        {unlinking === la.agentId ? 'Disconnecting...' : 'Disconnect'}
+                                    </button>
+                                </div>
                             ))}
                         </div>
+                    )}
+                </>
+            )}
 
-                        <form onSubmit={handleManualUpload}>
-                            <div className="space-y-4">
+            {/* Upload Document Dialog */}
+            {showUpload && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[90vh]">
+
+                        {/* ── Modal Header (always visible) ── */}
+                        <div className="px-6 pt-6 pb-4 flex-shrink-0">
+                            <h2 className="text-lg font-semibold text-surface-900 mb-4">Add Document</h2>
+
+                            {/* Type Tabs */}
+                            <div className="flex gap-1 bg-surface-100 p-1 rounded-lg">
+                                {[
+                                    { key: 'manual' as const, label: '✏️ Manual' },
+                                    { key: 'url' as const, label: '🔗 URL' },
+                                    { key: 'faq' as const, label: '❓ FAQ' },
+                                    { key: 'gsheet' as const, label: '📊 Sheets' },
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setUploadType(tab.key)}
+                                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                                            uploadType === tab.key
+                                                ? 'bg-white text-surface-900 shadow-sm'
+                                                : 'text-surface-500 hover:text-surface-700'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* ── Scrollable Form Body ── */}
+                        <form onSubmit={handleManualUpload} className="flex flex-col flex-1 min-h-0">
+                            <div className="flex-1 overflow-y-auto px-6 space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-surface-700 mb-1">
                                         Document Name
@@ -578,8 +744,13 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-medium text-surface-500">#{idx + 1}</span>
                                                     {faqPairs.length > 1 && (
-                                                        <button type="button" onClick={() => removeFaqPair(idx)}
-                                                            className="text-xs text-red-400 hover:text-red-600 transition-colors">Remove</button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeFaqPair(idx)}
+                                                            className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                                                        >
+                                                            Remove
+                                                        </button>
                                                     )}
                                                 </div>
                                                 <input
@@ -598,8 +769,11 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                                                 />
                                             </div>
                                         ))}
-                                        <button type="button" onClick={addFaqPair}
-                                            className="w-full py-2 border border-dashed border-surface-300 rounded-lg text-sm text-surface-500 hover:text-surface-700 hover:border-surface-400 transition-colors">
+                                        <button
+                                            type="button"
+                                            onClick={addFaqPair}
+                                            className="w-full py-2 border border-dashed border-surface-300 rounded-lg text-sm text-surface-500 hover:text-surface-700 hover:border-surface-400 transition-colors"
+                                        >
                                             + Add Another Q&A Pair
                                         </button>
                                     </div>
@@ -621,9 +795,13 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Bottom padding so last item isn't flush against the footer */}
+                                <div className="pb-2" />
                             </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
+                            {/* ── Modal Footer (always visible) ── */}
+                            <div className="flex justify-end gap-3 px-6 py-4 border-t border-surface-100 flex-shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -645,6 +823,90 @@ function KnowledgeBaseDetail({ kbId, onBack }: { kbId: string; onBack: () => voi
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Link Agent Dialog */}
+            {showLinkAgent && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-surface-900">Connect an Agent</h2>
+                            <button
+                                onClick={() => { setShowLinkAgent(false); setAgentSearch(''); }}
+                                className="text-surface-400 hover:text-surface-600 transition-colors text-lg leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <p className="text-sm text-surface-500 mb-4">
+                            Select an agent to give it access to this knowledge base.
+                        </p>
+
+                        <input
+                            type="text"
+                            placeholder="Search agents..."
+                            value={agentSearch}
+                            onChange={(e) => setAgentSearch(e.target.value)}
+                            className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3"
+                        />
+
+                        {agentsLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
+                            </div>
+                        ) : availableAgents.length === 0 ? (
+                            <div className="text-center py-8 text-surface-500 text-sm">
+                                {agents.length === 0
+                                    ? 'No agents found. Create an agent first.'
+                                    : 'All agents are already connected.'}
+                            </div>
+                        ) : (
+                            <div className="space-y-2 max-h-72 overflow-y-auto">
+                                {availableAgents.map((agent) => (
+                                    <div
+                                        key={agent.id}
+                                        className="flex items-center justify-between px-3 py-3 rounded-lg border border-surface-100 hover:border-primary-200 hover:bg-primary-25 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-base flex-shrink-0">
+                                                🤖
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-sm font-medium text-surface-900">
+                                                        {agent.name}
+                                                    </span>
+                                                    {agentStatusDot(agent.status)}
+                                                </div>
+                                                {agent.description && (
+                                                    <p className="text-xs text-surface-400 line-clamp-1">
+                                                        {agent.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleLinkAgent(agent.id)}
+                                            disabled={linking === agent.id}
+                                            className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 text-xs font-medium transition-colors flex-shrink-0"
+                                        >
+                                            {linking === agent.id ? 'Connecting...' : 'Connect'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="mt-4 pt-4 border-t border-surface-100 flex justify-end">
+                            <button
+                                onClick={() => { setShowLinkAgent(false); setAgentSearch(''); }}
+                                className="px-4 py-2 text-sm text-surface-600 hover:text-surface-800 transition-colors"
+                            >
+                                Done
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

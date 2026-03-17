@@ -32,6 +32,9 @@ importers:
       '@vaanix/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@vaanix/vector-store':
+        specifier: workspace:*
+        version: link:../../packages/vector-store
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -231,6 +234,9 @@ importers:
       '@types/node':
         specifier: ^22.13.4
         version: 22.19.11
+      drizzle-orm:
+        specifier: ^0.39.3
+        version: 0.39.3(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
