@@ -13,10 +13,18 @@ export default function AgentGeneralPage() {
     const { agent, loading, updateAgent } = useAgent(id);
     const [saving, setSaving] = useState(false);
 
-    if (loading || !agent) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!agent) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <p className="text-surface-400 text-sm">Agent not found.</p>
             </div>
         );
     }
@@ -30,8 +38,8 @@ export default function AgentGeneralPage() {
             language: form.get('language'),
             modelProvider: form.get('modelProvider') || null,
             modelId: form.get('modelId') || null,
-            temperature: form.get('temperature') ? parseFloat(form.get('temperature') as string) : 0.7,
-            maxTokens: form.get('maxTokens') ? parseInt(form.get('maxTokens') as string) : 1024,
+            temperature: (() => { const v = parseFloat(form.get('temperature') as string); return Number.isFinite(v) ? v : 0.7; })(),
+            maxTokens: (() => { const v = parseInt(form.get('maxTokens') as string, 10); return Number.isFinite(v) ? v : 1024; })(),
         };
         try {
             setSaving(true);

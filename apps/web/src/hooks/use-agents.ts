@@ -83,7 +83,9 @@ export function useAgents(status?: string, search?: string) {
                 body: JSON.stringify(data),
                 token: token ?? undefined,
             });
-            await fetchAgents();
+            // Optimistically add to list; best-effort refresh
+            setAgents((prev) => [...prev, res.data]);
+            fetchAgents().catch((err) => console.warn('[useAgents] createAgent refresh failed:', err));
             return res.data;
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to create agent');
@@ -98,7 +100,9 @@ export function useAgents(status?: string, search?: string) {
                 body: JSON.stringify(data),
                 token: token ?? undefined,
             });
-            await fetchAgents();
+            // Optimistically replace in list; best-effort refresh
+            setAgents((prev) => prev.map((a) => (a.id === id ? res.data : a)));
+            fetchAgents().catch((err) => console.warn('[useAgents] updateAgent refresh failed:', err));
             return res.data;
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to update agent');
@@ -109,7 +113,9 @@ export function useAgents(status?: string, search?: string) {
         try {
             const token = await getToken();
             await apiClient(`/api/agents/${id}`, { method: 'DELETE', token: token ?? undefined });
-            await fetchAgents();
+            // Optimistically remove from list; best-effort refresh
+            setAgents((prev) => prev.filter((a) => a.id !== id));
+            fetchAgents().catch((err) => console.warn('[useAgents] deleteAgent refresh failed:', err));
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to delete agent');
         }
@@ -122,7 +128,9 @@ export function useAgents(status?: string, search?: string) {
                 method: 'POST',
                 token: token ?? undefined,
             });
-            await fetchAgents();
+            // Optimistically add to list; best-effort refresh
+            setAgents((prev) => [...prev, res.data]);
+            fetchAgents().catch((err) => console.warn('[useAgents] duplicateAgent refresh failed:', err));
             return res.data;
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to duplicate agent');
@@ -133,7 +141,7 @@ export function useAgents(status?: string, search?: string) {
         try {
             const token = await getToken();
             await apiClient(`/api/agents/${id}/publish`, { method: 'POST', token: token ?? undefined });
-            await fetchAgents();
+            fetchAgents().catch((err) => console.warn('[useAgents] publishAgent refresh failed:', err));
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to publish agent');
         }
@@ -143,7 +151,7 @@ export function useAgents(status?: string, search?: string) {
         try {
             const token = await getToken();
             await apiClient(`/api/agents/${id}/archive`, { method: 'POST', token: token ?? undefined });
-            await fetchAgents();
+            fetchAgents().catch((err) => console.warn('[useAgents] archiveAgent refresh failed:', err));
         } catch (err: any) {
             throw new Error(err?.message ?? 'Failed to archive agent');
         }

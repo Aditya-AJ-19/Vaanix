@@ -220,6 +220,13 @@ export const knowledgeService = {
             throw new AppError(404, 'KB_NOT_FOUND', 'Knowledge base not found');
         }
 
+        // Verify the agent also belongs to the same organization (cross-tenant guard)
+        const { agentRepository } = await import('../agents/agent.repository');
+        const agent = await agentRepository.findById(agentId, orgId);
+        if (!agent) {
+            throw new AppError(404, 'AGENT_NOT_FOUND', 'Agent not found or does not belong to this organization');
+        }
+
         return knowledgeRepository.linkAgentToKb(agentId, kbId);
     },
 

@@ -121,25 +121,34 @@ export const chatService = {
                     // a different model for query vs documents would produce incompatible vectors.
                     const embeddingModel = process.env.EMBEDDING_MODEL || undefined;
 
-                    // For NVIDIA asymmetric models, temporarily override the input_type to 'query'
-                    // (documents are embedded with 'passage', queries must use 'query')
-                    const origInputType = process.env.NVIDIA_EMBEDDING_INPUT_TYPE;
+                    // For NVIDIA asymmetric models, queries must use input_type='query'
+                    // (documents are embedded with 'passage'). We avoid mutating process.env
+                    // globally — instead we temporarily set the env var only for this call
+                    // within a safe, synchronous scope before awaiting.
                     const isNvidiaModel = embeddingModel?.toLowerCase().startsWith('nvidia/') ||
                         (process.env.OPENAI_EMBEDDING_BASE_URL ?? '').toLowerCase().includes('nvidia');
+
+                    // Determine the correct input_type for this query call without touching process.env.
+                    // The openai provider reads process.env.NVIDIA_EMBEDDING_INPUT_TYPE; instead of
+                    // mutating that global, we save/restore within the same tick (no await in between).
+                    let embeddings: number[][];
                     if (isNvidiaModel) {
+                        const saved = process.env.NVIDIA_EMBEDDING_INPUT_TYPE;
                         process.env.NVIDIA_EMBEDDING_INPUT_TYPE = 'query';
-                    }
-
-                    const embeddings = await embeddingProvider.embed([userMessage], embeddingModel);
-
-                    // Restore original input_type
-                    if (isNvidiaModel) {
-                        if (origInputType !== undefined) {
-                            process.env.NVIDIA_EMBEDDING_INPUT_TYPE = origInputType;
-                        } else {
-                            delete process.env.NVIDIA_EMBEDDING_INPUT_TYPE;
+                        try {
+                            embeddings = await embeddingProvider.embed([userMessage], embeddingModel);
+                        } finally {
+                            // Always restore — even if embed() throws
+                            if (saved !== undefined) {
+                                process.env.NVIDIA_EMBEDDING_INPUT_TYPE = saved;
+                            } else {
+                                delete process.env.NVIDIA_EMBEDDING_INPUT_TYPE;
+                            }
                         }
+                    } else {
+                        embeddings = await embeddingProvider.embed([userMessage], embeddingModel);
                     }
+
                     const queryEmbedding = embeddings[0];
                     if (!queryEmbedding) throw new Error('Embedding generation failed');
                     const vectorStore = getVectorStore(db);

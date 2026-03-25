@@ -65,12 +65,21 @@ export function getEmbeddingProvider(overrideId?: string | null): EmbeddingProvi
 
 /**
  * Get the default model for the active LLM provider.
- * Uses LLM_MODEL env or falls back to provider's first model.
+ *
+ * Resolution order:
+ * 1. Explicit overrideModel argument
+ * 2. LLM_MODEL env var — only if it is valid for the selected provider
+ * 3. Provider's first model
+ * 4. Hard-coded fallback 'gpt-4o-mini'
+ *
+ * This prevents cross-provider mismatches where, for example, LLM_PROVIDER=google
+ * but LLM_MODEL=gpt-4o-mini (an OpenAI model), which would fail at runtime.
  */
 export function getDefaultModel(overrideModel?: string | null, overrideProvider?: string | null): string {
     if (overrideModel) return overrideModel;
-    if (process.env.LLM_MODEL) return process.env.LLM_MODEL;
     const provider = getLLMProvider(overrideProvider);
+    const envModel = process.env.LLM_MODEL;
+    if (envModel && provider.models.includes(envModel)) return envModel;
     return provider.models[0] ?? 'gpt-4o-mini';
 }
 

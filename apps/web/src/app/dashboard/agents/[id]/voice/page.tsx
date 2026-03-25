@@ -13,10 +13,18 @@ export default function AgentVoicePage() {
     const { agent, loading, updateAgent } = useAgent(id);
     const [saving, setSaving] = useState(false);
 
-    if (loading || !agent) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!agent) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <p className="text-surface-400 text-sm">Agent not found.</p>
             </div>
         );
     }

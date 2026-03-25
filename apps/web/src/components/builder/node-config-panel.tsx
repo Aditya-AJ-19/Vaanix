@@ -84,7 +84,7 @@ function StartFields({ data, id }: { data: StartNodeData; id: string }) {
     return (
         <FieldLabel label="Greeting Message">
             <textarea
-                value={data.greeting}
+                value={data.greeting ?? ''}
                 onChange={(e) => update(id, { greeting: e.target.value } as any)}
                 rows={3}
                 className="input-field resize-none"
@@ -99,7 +99,7 @@ function PromptFields({ data, id }: { data: PromptNodeData; id: string }) {
         <>
             <FieldLabel label="System Message">
                 <textarea
-                    value={data.systemMessage}
+                    value={data.systemMessage ?? ''}
                     onChange={(e) => update(id, { systemMessage: e.target.value } as any)}
                     rows={5}
                     className="input-field resize-none font-mono text-xs"
@@ -113,11 +113,11 @@ function PromptFields({ data, id }: { data: PromptNodeData; id: string }) {
                         min="0"
                         max="2"
                         step="0.1"
-                        value={data.temperature}
+                        value={data.temperature ?? 0.7}
                         onChange={(e) => update(id, { temperature: parseFloat(e.target.value) } as any)}
                         className="flex-1 accent-indigo-500"
                     />
-                    <span className="text-xs text-surface-500 w-8 text-right">{data.temperature}</span>
+                    <span className="text-xs text-surface-500 w-8 text-right">{data.temperature ?? 0.7}</span>
                 </div>
             </FieldLabel>
         </>
@@ -130,7 +130,7 @@ function ConditionFields({ data, id }: { data: ConditionNodeData; id: string }) 
         <>
             <FieldLabel label="Condition Type">
                 <select
-                    value={data.conditionType}
+                    value={data.conditionType ?? 'keyword'}
                     onChange={(e) => update(id, { conditionType: e.target.value } as any)}
                     className="input-field"
                 >
@@ -142,7 +142,7 @@ function ConditionFields({ data, id }: { data: ConditionNodeData; id: string }) 
             </FieldLabel>
             <FieldLabel label="Value / Expression">
                 <input
-                    value={data.conditionValue}
+                    value={data.conditionValue ?? ''}
                     onChange={(e) => update(id, { conditionValue: e.target.value } as any)}
                     placeholder="e.g., pricing, complaint"
                     className="input-field"
@@ -157,7 +157,7 @@ function ActionFields({ data, id }: { data: ActionNodeData; id: string }) {
     return (
         <FieldLabel label="Action Type">
             <select
-                value={data.actionType}
+                value={data.actionType ?? 'transfer_call'}
                 onChange={(e) => update(id, { actionType: e.target.value } as any)}
                 className="input-field"
             >
@@ -177,7 +177,7 @@ function EndFields({ data, id }: { data: EndNodeData; id: string }) {
         <>
             <FieldLabel label="End Type">
                 <select
-                    value={data.endType}
+                    value={data.endType ?? 'goodbye'}
                     onChange={(e) => update(id, { endType: e.target.value } as any)}
                     className="input-field"
                 >
@@ -188,7 +188,7 @@ function EndFields({ data, id }: { data: EndNodeData; id: string }) {
             </FieldLabel>
             <FieldLabel label="Closing Message">
                 <textarea
-                    value={data.message}
+                    value={data.message ?? ''}
                     onChange={(e) => update(id, { message: e.target.value } as any)}
                     rows={3}
                     className="input-field resize-none"

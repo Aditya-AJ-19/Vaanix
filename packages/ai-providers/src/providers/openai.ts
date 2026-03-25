@@ -42,15 +42,11 @@ function getClient(): OpenAI {
  */
 function getEmbeddingClient(): OpenAI {
     const apiKey = process.env.OPENAI_API_KEY;
-    console.log(`api key = ${apiKey}`);
-
     if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
     // Only use a custom base URL if OPENAI_EMBEDDING_BASE_URL is explicitly set.
     // Do NOT fall back to OPENAI_BASE_URL — that likely points to a proxy
     // that doesn't support embeddings.
     const baseUrl = process.env.OPENAI_EMBEDDING_BASE_URL;
-    console.log(`base url = ${baseUrl}`);
-
     return new OpenAI({ ...(baseUrl ? { baseURL: baseUrl } : {}), apiKey });
 }
 

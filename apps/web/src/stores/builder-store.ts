@@ -242,25 +242,25 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         const { past, nodes, edges } = get();
         if (past.length === 0) return;
         const prev = past[past.length - 1]!;
-        set({
+        set((s) => ({
             past: past.slice(0, -1),
-            future: [{ nodes, edges }, ...get().future],
+            future: [{ nodes, edges }, ...s.future],
             nodes: prev.nodes,
             edges: prev.edges,
             isDirty: true,
-        });
+        }));
     },
 
     redo: () => {
         const { future, nodes, edges } = get();
         if (future.length === 0) return;
         const next = future[0]!;
-        set({
+        set((s) => ({
             future: future.slice(1),
-            past: [...get().past, { nodes, edges }],
+            past: [...s.past, { nodes, edges }],
             nodes: next.nodes,
             edges: next.edges,
             isDirty: true,
-        });
+        }));
     },
 }));

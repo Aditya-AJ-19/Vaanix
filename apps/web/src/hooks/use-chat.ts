@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // ===========================
 // Types
@@ -81,13 +81,17 @@ export function useChat(agentId: string) {
         if (!sessionId) return;
         try {
             const token = await getToken();
-            await fetch(`${API_BASE_URL}/api/chat/sessions/${sessionId}/end`, {
+            const res = await fetch(`${API_BASE_URL}/api/chat/sessions/${sessionId}/end`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
             });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error?.message || `Failed to end session: ${res.status}`);
+            }
             setSessionId(null);
         } catch (err: any) {
             setError(err.message);

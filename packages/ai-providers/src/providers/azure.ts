@@ -25,6 +25,33 @@ function getClient(): OpenAI {
     });
 }
 
+/**
+ * Azure embedding calls require a different base URL than chat completions.
+ * Chat: POST {endpoint}/openai/deployments/{deployment}/chat/completions
+ * Embedding: POST {endpoint}/openai/deployments/{deployment}/embeddings
+ *
+ * The OpenAI SDK constructs the full path by appending to baseURL. For
+ * embeddings the SDK appends `/embeddings`, so the baseURL must NOT end
+ * with a deployment name — we just use the resource endpoint and let
+ * the SDK resolve the rest.
+ */
+function getAzureEmbeddingClient(): OpenAI {
+    const apiKey = process.env.AZURE_OPENAI_API_KEY;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    if (!apiKey || !endpoint) {
+        throw new Error('AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT must be set');
+    }
+    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-08-01-preview';
+    return new OpenAI({
+        apiKey,
+        // Do NOT append /openai/deployments here — the SDK will build the
+        // full path as: {endpoint}/openai/deployments/{model}/embeddings
+        baseURL: `${endpoint}/openai`,
+        defaultQuery: { 'api-version': apiVersion },
+        defaultHeaders: { 'api-key': apiKey },
+    });
+}
+
 export const azureLLM: LLMProvider = {
     id: 'azure',
     name: 'Azure OpenAI',
@@ -94,7 +121,7 @@ export const azureEmbedding: EmbeddingProvider = {
     },
 
     async embed(texts: string[], model?: string): Promise<number[][]> {
-        const client = getClient();
+        const client = getAzureEmbeddingClient();
         const embeddingModel = model ?? this.defaultModel;
         const response = await client.embeddings.create({
             model: embeddingModel,

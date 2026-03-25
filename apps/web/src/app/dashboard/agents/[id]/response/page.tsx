@@ -12,8 +12,18 @@ export default function AgentResponsePage() {
     const id = params.id as string;
     const { agent, loading, updateAgent } = useAgent(id);
     const [saving, setSaving] = useState(false);
+    const [responseStyle, setResponseStyle] = useState<string | null>(null);
+    const [responseFormat, setResponseFormat] = useState<string | null>(null);
 
-    if (loading || !agent) {
+    // Once agent loads, seed the controlled state (only once)
+    const [seeded, setSeeded] = useState(false);
+    if (agent && !seeded) {
+        setResponseStyle(agent.responseStyle ?? 'conversational');
+        setResponseFormat(agent.responseFormat ?? 'text');
+        setSeeded(true);
+    }
+
+    if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
@@ -21,13 +31,20 @@ export default function AgentResponsePage() {
         );
     }
 
+    if (!agent) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <p className="text-surface-400 text-sm">Agent not found.</p>
+            </div>
+        );
+    }
+
     const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const form = new FormData(e.currentTarget as HTMLFormElement);
         const data: Record<string, unknown> = {
-            responseStyle: form.get('responseStyle') || 'conversational',
-            responseFormat: form.get('responseFormat') || 'text',
-            customInstructions: form.get('customInstructions') || null,
+            responseStyle: responseStyle ?? 'conversational',
+            responseFormat: responseFormat ?? 'text',
+            customInstructions: (new FormData(e.currentTarget as HTMLFormElement)).get('customInstructions') || null,
         };
         try {
             setSaving(true);
@@ -54,16 +71,18 @@ export default function AgentResponsePage() {
                     {RESPONSE_STYLES.map((style) => (
                         <label
                             key={style.value}
-                            className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-sm ${(agent.responseStyle ?? 'conversational') === style.value
+                            className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-sm ${
+                                (responseStyle ?? 'conversational') === style.value
                                     ? 'border-primary-500 bg-primary-50/50'
                                     : 'border-surface-200 hover:border-surface-300'
-                                }`}
+                            }`}
                         >
                             <input
                                 type="radio"
                                 name="responseStyle"
                                 value={style.value}
-                                defaultChecked={(agent.responseStyle ?? 'conversational') === style.value}
+                                checked={(responseStyle ?? 'conversational') === style.value}
+                                onChange={() => setResponseStyle(style.value)}
                                 className="sr-only"
                             />
                             <span className="text-sm font-semibold text-surface-900">{style.label}</span>
@@ -81,16 +100,18 @@ export default function AgentResponsePage() {
                     {RESPONSE_FORMATS.map((fmt) => (
                         <label
                             key={fmt.value}
-                            className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-sm ${(agent.responseFormat ?? 'text') === fmt.value
+                            className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-sm ${
+                                (responseFormat ?? 'text') === fmt.value
                                     ? 'border-primary-500 bg-primary-50/50'
                                     : 'border-surface-200 hover:border-surface-300'
-                                }`}
+                            }`}
                         >
                             <input
                                 type="radio"
                                 name="responseFormat"
                                 value={fmt.value}
-                                defaultChecked={(agent.responseFormat ?? 'text') === fmt.value}
+                                checked={(responseFormat ?? 'text') === fmt.value}
+                                onChange={() => setResponseFormat(fmt.value)}
                                 className="sr-only"
                             />
                             <span className="text-sm font-semibold text-surface-900">{fmt.label}</span>

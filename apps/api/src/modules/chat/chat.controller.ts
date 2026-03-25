@@ -92,14 +92,23 @@ export const chatController = {
                 'X-Accel-Buffering': 'no',
             });
 
+            // Track client disconnection so we can stop the upstream LLM stream early
+            let aborted = false;
+            req.on('close', () => {
+                aborted = true;
+            });
+
             // Stream LLM response
             const stream = chatService.streamChat(sessionId, content.trim(), ctx.dbOrgId!);
 
             for await (const chunk of stream) {
+                if (aborted) break; // Client disconnected — stop consuming tokens
                 res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
             }
 
-            res.write(`data: [DONE]\n\n`);
+            if (!aborted) {
+                res.write(`data: [DONE]\n\n`);
+            }
             res.end();
         } catch (err: any) {
             // If headers already sent (streaming started), close the connection

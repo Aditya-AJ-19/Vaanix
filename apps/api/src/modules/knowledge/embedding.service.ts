@@ -52,7 +52,9 @@ export function chunkText(text: string, options: ChunkOptions = {}): string[] {
 
         // If a single paragraph exceeds chunk size, split by sentences
         if (trimmedParagraph.length > chunkSize) {
-            const sentences = trimmedParagraph.match(/[^.!?]+[.!?]+/g) || [trimmedParagraph];
+            const sentences =
+                trimmedParagraph.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => sentence.trim()) ??
+                [trimmedParagraph];
             for (const sentence of sentences) {
                 if (current.length + sentence.length + 1 > chunkSize && current.length > 0) {
                     chunks.push(current.trim());
@@ -124,11 +126,28 @@ export async function embedDocument(
         const embeddingModel = process.env.EMBEDDING_MODEL || undefined;
         const embeddings = await embeddingProvider.embed(chunks, embeddingModel);
 
+        // Strict validation: embedding count must match chunk count, and every
+        // embedding must be a non-empty numeric vector.  A missing or zero-length
+        // vector would produce silent garbage in vector search; fail fast instead.
+        if (embeddings.length !== chunks.length) {
+            throw new Error(
+                `Embedding count mismatch: expected ${chunks.length} but received ${embeddings.length}.`,
+            );
+        }
+        for (let i = 0; i < embeddings.length; i++) {
+            const vec = embeddings[i];
+            if (!Array.isArray(vec) || vec.length === 0) {
+                throw new Error(
+                    `Embedding at index ${i} is empty or invalid. All chunks must produce a non-empty numeric vector.`,
+                );
+            }
+        }
+
         // 4. Store chunks + embeddings
         const vectorDocs = chunks.map((content, index) => ({
             id: `${documentId}_chunk_${index}`,
             content,
-            embedding: embeddings[index] ?? [],
+            embedding: embeddings[index]!,
             metadata: {
                 documentId: doc.id,
                 knowledgeBaseId: doc.knowledgeBaseId,
