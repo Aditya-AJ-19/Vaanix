@@ -192,16 +192,57 @@ export const knowledgeChunks = pgTable('knowledge_chunks', {
 });
 
 // ===========================
+// Conversations (chat sessions)
+// ===========================
+export const conversations = pgTable('conversations', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+        .notNull()
+        .references(() => organizations.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id')
+        .notNull()
+        .references(() => agents.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+        .notNull()
+        .references(() => users.id, { onDelete: 'cascade' }),
+    channel: varchar('channel', { length: 50 }).notNull().default('browser_test'), // browser_test | web_widget | whatsapp | telephony
+    status: varchar('status', { length: 50 }).notNull().default('active'), // active | ended
+    metadata: text('metadata'), // JSON string
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+        .notNull()
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+});
+
+// ===========================
+// Conversation Messages
+// ===========================
+export const conversationMessages = pgTable('conversation_messages', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    conversationId: uuid('conversation_id')
+        .notNull()
+        .references(() => conversations.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 20 }).notNull(), // user | assistant | system
+    content: text('content').notNull(),
+    tokenCount: integer('token_count'),
+    latencyMs: integer('latency_ms'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ===========================
 // Relations
 // ===========================
 export const organizationsRelations = relations(organizations, ({ many }) => ({
     members: many(organizationMembers),
     agents: many(agents),
     knowledgeBases: many(knowledgeBases),
+    conversations: many(conversations),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
     memberships: many(organizationMembers),
+    conversations: many(conversations),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -225,6 +266,7 @@ export const agentsRelations = relations(agents, ({ one, many }) => ({
         references: [users.id],
     }),
     knowledgeBases: many(agentKnowledgeBases),
+    conversations: many(conversations),
 }));
 
 export const knowledgeBasesRelations = relations(knowledgeBases, ({ one, many }) => ({
@@ -251,5 +293,28 @@ export const agentKnowledgeBasesRelations = relations(agentKnowledgeBases, ({ on
     knowledgeBase: one(knowledgeBases, {
         fields: [agentKnowledgeBases.knowledgeBaseId],
         references: [knowledgeBases.id],
+    }),
+}));
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+    organization: one(organizations, {
+        fields: [conversations.organizationId],
+        references: [organizations.id],
+    }),
+    agent: one(agents, {
+        fields: [conversations.agentId],
+        references: [agents.id],
+    }),
+    user: one(users, {
+        fields: [conversations.userId],
+        references: [users.id],
+    }),
+    messages: many(conversationMessages),
+}));
+
+export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
+    conversation: one(conversations, {
+        fields: [conversationMessages.conversationId],
+        references: [conversations.id],
     }),
 }));

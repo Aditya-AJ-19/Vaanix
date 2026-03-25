@@ -1,6 +1,6 @@
 # 📈 Vaanix — Progress Report
 
-> Current Status: **Phase 1 In Progress** (1.1 ✅ 1.1b ✅ 1.2 ✅ 1.3 ✅ 1.4 ✅) | Next: 1.5 — Update Tracking Documents
+> Current Status: **Phase 1 Complete** (1.1 ✅ 1.1b ✅ 1.2 ✅ 1.3 ✅ 1.4 ✅ 1.5 ✅) | Next: Phase 2 — Channel Deployment
 
 ---
 
@@ -202,6 +202,32 @@ Total: 6/6 packages pass — 15.9s build time
 Total: 7/7 packages pass — 17.5s build time
 ```
 
+### 1.5 Agent Testing (Browser) ✅
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **DB Schema** | ✅ | `conversations` + `conversation_messages` tables with relations, token/latency tracking |
+| **`chat.repository.ts`** | ✅ | 108 lines — CRUD for conversations and messages, paginated listing |
+| **`chat.service.ts`** | ✅ | 209 lines — Core orchestration: session mgmt, KB context injection via vector search, SSE streaming, message persistence |
+| **`chat.controller.ts`** | ✅ | 102 lines — SSE response streaming, session CRUD endpoints |
+| **`chat.routes.ts`** | ✅ | 17 lines — Auth + RBAC protected routes at `/api/chat` |
+| **`use-chat.ts`** | ✅ | 205 lines — SSE stream parsing, Web Speech API (STT), browser SpeechSynthesis (TTS), session state |
+| **`test/page.tsx`** | ✅ | 260 lines — Chat UI with message bubbles, mic button (pulse animation), speaker toggle, session controls |
+| **Agent layout** | ✅ | Added "Test" tab to agent detail navigation |
+
+### Build Status (After Phase 1 Complete)
+
+```text
+✓ @vaanix/shared        — tsc compiled
+✓ @vaanix/database      — tsc compiled
+✓ @vaanix/ai-providers  — tsc compiled
+✓ @vaanix/vector-store  — tsc compiled
+✓ @vaanix/ui            — tsc compiled
+✓ @vaanix/api           — tsc compiled
+✓ @vaanix/web           — next build (4 static + 15 dynamic pages)
+Total: 7/7 packages pass — 20.1s build time
+```
+
 ---
 
 ## 📊 Metrics
@@ -210,10 +236,11 @@ Total: 7/7 packages pass — 17.5s build time
 |--------|-------|
 | Packages | 7 (5 libraries + 2 apps) |
 | Dependencies | 512 npm packages |
-| Build Time | 17.5s |
+| Build Time | 20.1s |
 | Landing Page Size | 161 B |
 | Dashboard Page Size | 141 B each |
 | Builder Page Size | 75.8 kB |
 | Knowledge Page Size | 4.88 kB |
+| Test Chat Page Size | ~4 kB |
 | First Load JS | 102 kB shared |
 

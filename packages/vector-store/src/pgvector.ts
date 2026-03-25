@@ -74,6 +74,7 @@ export class PgVectorStore implements VectorStore {
 
         // Drizzle Neon HTTP execute returns { rows: [...] }
         const rows: any[] = result.rows ?? result;
+        console.log(`[pgvector] SQL query returned ${rows.length} row(s) for filter:`, JSON.stringify(query.filter));
 
         // Calculate cosine similarity in-memory (MVP approach)
         const results: VectorResult[] = rows.map((row: any) => {
@@ -91,6 +92,13 @@ export class PgVectorStore implements VectorStore {
                 metadata,
             };
         });
+
+        if (results.length > 0) {
+            console.log(`[pgvector] Query embedding dims: ${query.embedding.length}, Stored embedding dims: ${(typeof rows[0].embedding === 'string' ? JSON.parse(rows[0].embedding) : rows[0].embedding)?.length}`);
+            const topScores = results.map(r => r.score).sort((a, b) => b - a).slice(0, 5);
+            console.log(`[pgvector] Top similarity scores (before minScore filter): ${topScores.join(', ')}`);
+            console.log(`[pgvector] minScore filter: ${query.minScore}`);
+        }
 
         // Sort by similarity and apply filters
         return results

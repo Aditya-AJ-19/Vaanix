@@ -78,6 +78,7 @@ export default function AgentDetailLayout({ children }: { children: React.ReactN
                         { label: 'Voice & Language', href: `/dashboard/agents/${id}/voice` },
                         { label: 'Messages', href: `/dashboard/agents/${id}/messages` },
                         { label: 'Response', href: `/dashboard/agents/${id}/response` },
+                        { label: 'Test', href: `/dashboard/agents/${id}/test` },
                     ].map((tab) => (
                         <Link key={tab.href} href={tab.href}
                             className="py-3 px-1 text-sm font-medium border-b-2 border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300 transition-colors">

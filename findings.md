@@ -514,6 +514,7 @@ Target end-to-end: < 2 seconds
 | Agent Config UI | Tabbed interface + validation | High | ✅ Phase 1.2 |
 | Visual Builder Canvas | React Flow + Zustand + dagre | High | ✅ Phase 1.3 |
 | Knowledge Base System | Schema + API + UI + agent linking | High | ✅ Phase 1.4 |
+| Agent Testing (Browser) | Chat + SSE + STT + TTS + KB context | High | ✅ Phase 1.5 |
 
 ---
 
@@ -572,3 +573,19 @@ Target end-to-end: < 2 seconds
 7. **Vector Storage Strategy (ADR-006):** High-scale vector search requires specialized databases, but adding Pinecone/Qdrant now introduces infrastructure dependencies. Decision: Created an abstract `@vaanix/vector-store` package. Phase 1 uses a `pgvector` compatible implementation as MVP (storing embeddings as JSON arrays with JS cosine similarity). Rationale: Keeps infrastructure simple for the local dev environment while allowing a swap to dedicated vector DBs later using the `.env` `VECTOR_STORE_PROVIDER` injection.
 
 8. **Synchronous Knowledge Ingestion MVP (ADR-007):** URL scraping and Google Sheets extraction can be time-consuming. Decision: Handled synchronously in Phase 1 within the `/upload` API endpoint using native Node `fetch`. Rationale: Keeps deployment simple without needing BullMQ right away. Will refactor to event-driven processing via BullMQ in Phase 3 when advanced scaling is required.
+
+### 1.5 Agent Testing (Browser) — Technical Choices
+
+1. **SSE for LLM Streaming (ADR-008):** Used Server-Sent Events (SSE) over WebSockets for streaming LLM responses. Rationale: SSE is unidirectional server→client, which matches the LLM streaming model exactly. Simpler than WebSockets (no handshake, auto-reconnect), works through all CDN/proxy layers, and is native to the `EventSource` browser API. The backend `chat.controller.ts` sets `Content-Type: text/event-stream` and writes `data:` frames.
+
+2. **Web Speech API for STT (Zero-Cost):** Used the browser-native `webkitSpeechRecognition` API instead of a paid STT provider. Supports continuous recognition, interim results, and language selection. Trade-off: quality varies by browser (Chrome is best), no server-side processing needed. ElevenLabs or Deepgram can be plugged in later for production-grade accuracy.
+
+3. **Browser SpeechSynthesis for TTS (Zero-Cost):** Used the browser's `SpeechSynthesis` API for reading agent responses aloud. Supports voice selection and rate/pitch control. Toggle-able via the UI. Trade-off: voice quality is basic compared to ElevenLabs/Azure Neural voices, but eliminates API costs during testing. The `use-chat.ts` hook is structured to swap in a provider-based TTS with minimal changes.
+
+4. **KB Context Injection via Vector Search:** On every user message, the service queries all linked knowledge bases by embedding the user query and running cosine similarity search (via `@vaanix/vector-store`). Top 5 chunks above 0.5 similarity are injected into the system prompt as `--- Knowledge Base Context ---` blocks. This approach is simple but effective — no reranking or HyDE yet.
+
+5. **Conversation Persistence with Metrics:** Both user and assistant messages are stored in `conversation_messages` with `token_count` (estimated at 1 token ≈ 4 chars) and `latency_ms` (wall-clock from user message receipt to full response). This enables future analytics on response quality and cost per conversation.
+
+6. **Per-KB Vector Queries (Not Batch):** The `VectorQuery` interface only supports filtering by a single `knowledgeBaseId` string. For agents linked to multiple KBs, we query each KB individually in parallel (`Promise.all`) and merge results by score. This is correct but may need optimization when agents have 10+ KBs linked.
+
+7. **Frontend SSE Parsing with `fetch` (Not `EventSource`):** Used `fetch` with `ReadableStream` reader instead of `EventSource` because `EventSource` doesn't support custom headers (needed for auth bearer token). The `use-chat.ts` hook manually parses `data:` lines from the stream, handling `[DONE]` sentinel to finalize messages.

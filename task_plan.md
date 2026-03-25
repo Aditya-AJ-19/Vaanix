@@ -154,21 +154,21 @@ gantt
 - [x] Vector embedding generation (abstract provider)
 - [x] Vector storage integration (Pinecone/Qdrant/pgvector abstract connector so that i can use anything without much changes in code.)
 
-#### 1.5 Agent Testing (Browser)
-- [ ] Integrate Web Speech API for STT
-- [ ] Connect to TTS provider (ElevenLabs)
-- [ ] Build chat/voice test interface
-- [ ] Create LLM orchestration layer
-- [ ] Implement context injection from knowledge base
-- [ ] Add conversation history tracking
-- [ ] Build test session logging
+#### 1.5 Agent Testing (Browser) ✅
+- [x] Integrate Web Speech API for STT
+- [x] Connect to TTS provider (Browser SpeechSynthesis; ElevenLabs ready)
+- [x] Build chat/voice test interface
+- [x] Create LLM orchestration layer
+- [x] Implement context injection from knowledge base
+- [x] Add conversation history tracking
+- [x] Build test session logging
 
 ### Checklist
-- [ ] Agent can be created and configured
-- [ ] Knowledge can be uploaded and processed
-- [ ] Agent can be tested via browser voice
-- [ ] Conversation logs are captured
-- [ ] Agent state is persisted correctly
+- [x] Agent can be created and configured
+- [x] Knowledge can be uploaded and processed
+- [x] Agent can be tested via browser voice
+- [x] Conversation logs are captured
+- [x] Agent state is persisted correctly
 
 ### Dependencies
 - Phase 0 complete
@@ -370,7 +370,7 @@ Phase 0 (Foundation) ✅
     └── Infrastructure
           │
           ▼
-Phase 1 (Agent Builder) ← NEXT
+Phase 1 (Agent Builder) ✅
     │
     ├── Visual Builder
     ├── Knowledge System
@@ -415,7 +415,7 @@ Phase 4 (Production)
 | Phase | Duration | Milestone | Status |
 |-------|----------|-----------|--------|
 | Phase 0 | 2 weeks | Foundation live, auth working | ✅ Complete |
-| Phase 1 | 4 weeks | Agent builder functional | 🔨 In Progress (1.1 + 1.1b + 1.2 + 1.3 + 1.4 ✅) |
+| Phase 1 | 4 weeks | Agent builder functional | ✅ Complete (1.1 + 1.1b + 1.2 + 1.3 + 1.4 + 1.5 ✅) |
 | Phase 2 | 3 weeks | Web widget deployed | ⬜ Pending |
 | Phase 3 | 2 weeks | Billing live | ⬜ Pending |
 | Phase 4 | 4 weeks | Production ready | ⬜ Pending |
