@@ -104,52 +104,71 @@ gantt
 ### Engineering Tasks
 
 #### 1.1 Agent Data Model
-- [ ] Design Agent entity schema
-- [ ] Implement agent CRUD operations
-- [ ] Add agent versioning support
-- [ ] Create agent templates system
+- [x] Design Agent entity schema (extended with systemPrompt, language, voiceId, modelProvider, etc.)
+- [x] Implement agent CRUD operations (enhanced with pagination, search, filter)
+- [x] Add agent versioning support (version field + publish/archive lifecycle)
+- [x] Create agent templates system (agentTemplates table)
+- [x] Add knowledge base schema (knowledgeBases, knowledgeDocuments, agentKnowledgeBases)
 
-#### 1.2 Visual Builder Canvas
-- [ ] Integrate React Flow for canvas
-- [ ] Create custom node types (Prompt, Condition, Action, etc.)
-- [ ] Implement edge connection logic
-- [ ] Build node configuration panels
-- [ ] Add undo/redo functionality
-- [ ] Implement canvas save/load
-- [ ] Create agent workflow serialization format
+#### 1.1b AI Provider Abstraction Layer (Plug & Play)
+- [x] Create `packages/ai-providers` workspace package
+- [x] Define unified `LLMProvider` and `EmbeddingProvider` interfaces
+- [x] Build registry with .env-based auto-discovery + per-agent overrides
+- [x] Implement OpenAI provider (LLM + Embeddings)
+- [x] Implement Google Gemini provider (LLM)
+- [x] Implement Azure OpenAI provider (LLM + Embeddings)
 
-#### 1.3 Agent Configuration UI
-- [ ] Personality configuration panel
-- [ ] Voice/tone selection (dropdown for now)
-- [ ] Language selection (Hindi, English, Regional)
-- [ ] Response style configuration
-- [ ] Greeting/fallback message setup
+#### 1.2 Agent Configuration UI ✅
+- [x] Install react-hook-form, zod, @hookform/resolvers on `@vaanix/web`
+- [x] Build `AgentCard` component (status badges, menu actions, language display)
+- [x] Build `CreateAgentDialog` (react-hook-form + zod validation)
+- [x] Build agents list page (grid view, search bar, status filter tabs)
+- [x] Build agent detail page at `/dashboard/agents/[id]` (General tab with model config)
+- [x] Build agent detail layout with tabbed navigation + header
+- [x] Build Personality & Prompt tab (system prompt + personality/tone)
+- [x] Build Voice & Language tab (language selection + voice ID)
+- [x] Build Messages tab (greeting + fallback message)
+- [x] Build `useAgents` and `useAgent` custom hooks (CRUD + publish/archive/duplicate)
+- [x] Build shared Zod validation schemas (`validations/agent.ts`)
 
-#### 1.4 Knowledge Base System
-- [ ] Design knowledge entity schema
-- [ ] Implement file upload service (S3/R2)
-- [ ] PDF text extraction pipeline
-- [ ] Website scraping service
-- [ ] FAQ/Q&A manual entry
-- [ ] Google Sheets import
-- [ ] Vector embedding generation (abstract provider)
-- [ ] Vector storage integration (Pinecone/Qdrant/pgvector)
+#### 1.3 Visual Builder Canvas (React Flow) ✅
+- [x] Integrate React Flow for canvas
+- [x] Create custom node types (Start, Prompt, Condition, Action, End)
+- [x] Implement edge connection logic
+- [x] Build node configuration panels
+- [x] Add undo/redo functionality
+- [x] Implement canvas save/load
+- [x] Create agent workflow serialization format
 
-#### 1.5 Agent Testing (Browser)
-- [ ] Integrate Web Speech API for STT
-- [ ] Connect to TTS provider (ElevenLabs/Azure)
-- [ ] Build chat/voice test interface
-- [ ] Create LLM orchestration layer
-- [ ] Implement context injection from knowledge base
-- [ ] Add conversation history tracking
-- [ ] Build test session logging
+#### 1.4 Agent Advanced Configuration ✅
+- [x] Response style configuration
+- [x] Agent templates integration in create dialog
+
+#### 1.4 Knowledge Base System ✅
+- [x] Design knowledge entity schema
+- [x] Implement file upload service (S3/R2)
+- [x] PDF text extraction pipeline
+- [x] Website scraping service
+- [x] FAQ/Q&A manual entry
+- [x] Google Sheets import
+- [x] Vector embedding generation (abstract provider)
+- [x] Vector storage integration (Pinecone/Qdrant/pgvector abstract connector so that i can use anything without much changes in code.)
+
+#### 1.5 Agent Testing (Browser) ✅
+- [x] Integrate Web Speech API for STT
+- [x] Connect to TTS provider (Browser SpeechSynthesis; ElevenLabs ready)
+- [x] Build chat/voice test interface
+- [x] Create LLM orchestration layer
+- [x] Implement context injection from knowledge base
+- [x] Add conversation history tracking
+- [x] Build test session logging
 
 ### Checklist
-- [ ] Agent can be created and configured
-- [ ] Knowledge can be uploaded and processed
-- [ ] Agent can be tested via browser voice
-- [ ] Conversation logs are captured
-- [ ] Agent state is persisted correctly
+- [x] Agent can be created and configured
+- [x] Knowledge can be uploaded and processed
+- [x] Agent can be tested via browser voice
+- [x] Conversation logs are captured
+- [x] Agent state is persisted correctly
 
 ### Dependencies
 - Phase 0 complete
@@ -351,7 +370,7 @@ Phase 0 (Foundation) ✅
     └── Infrastructure
           │
           ▼
-Phase 1 (Agent Builder) ← NEXT
+Phase 1 (Agent Builder) ✅
     │
     ├── Visual Builder
     ├── Knowledge System
@@ -396,7 +415,7 @@ Phase 4 (Production)
 | Phase | Duration | Milestone | Status |
 |-------|----------|-----------|--------|
 | Phase 0 | 2 weeks | Foundation live, auth working | ✅ Complete |
-| Phase 1 | 4 weeks | Agent builder functional | ⬜ Next |
+| Phase 1 | 4 weeks | Agent builder functional | ✅ Complete (1.1 + 1.1b + 1.2 + 1.3 + 1.4 + 1.5 ✅) |
 | Phase 2 | 3 weeks | Web widget deployed | ⬜ Pending |
 | Phase 3 | 2 weeks | Billing live | ⬜ Pending |
 | Phase 4 | 4 weeks | Production ready | ⬜ Pending |

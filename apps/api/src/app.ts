@@ -7,6 +7,8 @@ import { errorHandler, notFoundHandler } from './core/error.middleware';
 import { requestLogger } from './core/logger';
 import { healthRouter } from './modules/health/health.routes';
 import { agentRouter } from './modules/agents/agent.routes';
+import { knowledgeRouter } from './modules/knowledge/knowledge.routes';
+import { chatRouter } from './modules/chat/chat.routes';
 
 const app = express();
 
@@ -49,6 +51,8 @@ app.use(requestLogger);
 
 app.use('/api', healthRouter);
 app.use('/api/agents', agentRouter);
+app.use('/api/knowledge-bases', knowledgeRouter);
+app.use('/api/chat', chatRouter);
 
 // ===========================
 // Error Handling

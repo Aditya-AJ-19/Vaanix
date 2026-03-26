@@ -510,3 +510,82 @@ Target end-to-end: < 2 seconds
 | Voice Runtime | Separable module | High | ⬜ Phase 1 |
 | Telephony | Exotel/Plivo primary | Medium | ⬜ Phase 2 |
 | TTS | Azure primary, Bhashini secondary | Medium | ⬜ Phase 1 |
+| AI Provider Abstraction | Registry + .env discovery | High | ✅ Phase 1.1b |
+| Agent Config UI | Tabbed interface + validation | High | ✅ Phase 1.2 |
+| Visual Builder Canvas | React Flow + Zustand + dagre | High | ✅ Phase 1.3 |
+| Knowledge Base System | Schema + API + UI + agent linking | High | ✅ Phase 1.4 |
+| Agent Testing (Browser) | Chat + SSE + STT + TTS + KB context | High | ✅ Phase 1.5 |
+
+---
+
+## 🛠️ Phase 1 Implementation Findings
+
+### 1.1b AI Provider Abstraction — Technical Choices
+
+1. **Registry Pattern:** Single `getLLMProvider()` / `getEmbeddingProvider()` entry point with auto-discovery from `.env`. Per-agent overrides stored in DB (`modelProvider`, `modelId` columns). Adding a new provider = one file + register in registry.
+
+2. **OpenAI SDK Reuse for Azure:** Azure OpenAI provider uses the standard `openai` npm package with `baseURL` and `apiKey` overrides rather than the separate `@azure/openai` SDK. Simplifies dependencies and keeps API surface identical.
+
+3. **Streaming Support:** All LLM providers implement both `chat()` (full response) and `chatStream()` (async iterable of chunks). This was designed upfront to avoid refactoring when real-time voice pipeline needs streaming.
+
+### 1.2 Agent Configuration UI — Technical Choices
+
+1. **No SWR/React Query:** Used plain `useState` + `useEffect` + `useCallback` hooks for data fetching instead of SWR/React Query. The agent CRUD operations are simple enough that the overhead of a caching library wasn't justified. Can be added later if needed.
+
+2. **react-hook-form + Zod:** Used `react-hook-form` with `@hookform/resolvers/zod` for the create dialog. Config tabs use native `FormData` extraction for simpler save flows (no controlled inputs needed for edit forms).
+
+3. **Tabbed Sub-routes:** Agent detail uses Next.js `[id]/layout.tsx` with nested routes (`[id]/page.tsx`, `[id]/personality/page.tsx`, `[id]/voice/page.tsx`, `[id]/messages/page.tsx`) instead of client-side tab state. Benefits: shareable URLs, browser back/forward works, each tab lazy-loads independently.
+
+4. **10 Indian Languages Supported:** Language list includes English + 9 major Indian languages (Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, Gujarati, Malayalam, Punjabi) with native script labels for user clarity.
+
+5. **Model Provider dropdown fed from constants:** Currently `MODEL_PROVIDERS` is a static constant matching the 3 implemented providers (OpenAI, Google Gemini, Azure). Future: fetch available providers dynamically from `@vaanix/ai-providers` `listAvailableProviders()` API.
+
+### 1.3 Visual Builder Canvas — Technical Choices
+
+1. **React Flow v12 (@xyflow/react):** Used the v12 `@xyflow/react` package (renamed from `reactflow`). Required explicit type assertions when casting `applyNodeChanges()` / `applyEdgeChanges()` returns back to `BuilderNode[]` / `BuilderEdge[]` because the generic `Node[]` return type doesn't carry our custom data union through.
+
+2. **Zustand for canvas state:** Builder state lives in a dedicated Zustand store (`builder-store.ts`) separate from any React context. This allows React Flow callbacks (`onNodesChange`, `onEdgesChange`, `onConnect`) to directly mutate store state without re-rendering the entire tree. The store also manages undo/redo with a 30-snapshot circular buffer.
+
+3. **Typed node data union:** Five distinct `*NodeData` interfaces (`StartNodeData`, `PromptNodeData`, `ConditionNodeData`, `ActionNodeData`, `EndNodeData`) are unioned into `BuilderNodeData`. Each interface includes `[key: string]: unknown` to satisfy React Flow's `Record<string, unknown>` constraint on node data.
+
+4. **dagre for auto-layout:** Used `@dagrejs/dagre` for automatic top-to-bottom graph layout. Lightweight (~30 KB), no external runtime dependencies. Provides clean hierarchical layouts when users click "Auto-layout".
+
+5. **Serialization as JSON string in `workflowData`:** The workflow (nodes + edges) is serialized as a JSON string and stored in the agent's `workflowData` text column. This keeps the schema simple — no separate workflow tables needed. Deserialization includes validation (`Array.isArray` checks) for robustness.
+
+6. **Full-screen builder overlay:** Builder layout uses `fixed inset-0 z-50` to take over the entire viewport, providing a distraction-free canvas editing experience separate from the dashboard layout.
+
+7. **Five custom node types with visual differentiation:** Each node type has a distinct color scheme (emerald/indigo/amber/blue/rose), dedicated icon, and type-specific preview content. The condition node has dual output handles (Yes/No) positioned at 30% and 70% for clear branching visuals.
+
+### 1.4 Knowledge Base System — Technical Choices
+
+1. **Schema already defined in 1.1:** The `knowledgeBases`, `knowledgeDocuments`, and `agentKnowledgeBases` tables were already created during Phase 1.1 data model enhancement. Phase 1.4 added the API module and frontend UI to make them functional.
+
+2. **Document status lifecycle:** Documents go through `pending → processing → ready | failed` states. Currently, documents with `content` provided at upload time are set directly to `ready`. The `pending` state is reserved for future async processing (text extraction, chunking, embedding via `@vaanix/ai-providers`).
+
+3. **File upload as JSON body (MVP approach):** File upload currently accepts text content via JSON body (`content` field) rather than multipart form data. Text files are read client-side via `file.text()` and sent as JSON. This is intentional for MVP — full binary file upload with S3/R2 storage will be added when the processing pipeline is built.
+
+4. **Agent ↔ KB many-to-many linking:** The `agentKnowledgeBases` join table allows multiple agents to share the same knowledge base, and each agent can have multiple KBs. The API provides `/api/knowledge-bases/:id/agents` endpoints for linking/unlinking, with inner joins for KB listing per agent.
+
+5. **Detail view as client-side state (no sub-routes):** Unlike the agent detail page which uses Next.js `[id]` routes, the knowledge base detail view uses client-side state (`selectedKb`) within the same page. This keeps the page simpler — KBs don't have the same tab complexity as agents. Can be refactored to sub-routes if the KB detail view grows.
+
+6. **KNOWLEDGE_MANAGE permission:** All knowledge API endpoints use the single `KNOWLEDGE_MANAGE` permission (already defined in `@vaanix/shared`). This is simpler than the agent module's granular `CREATE/READ/UPDATE/DELETE` split because KB management is a single coherent feature that doesn't need separate read-only access.
+
+7. **Vector Storage Strategy (ADR-006):** High-scale vector search requires specialized databases, but adding Pinecone/Qdrant now introduces infrastructure dependencies. Decision: Created an abstract `@vaanix/vector-store` package. Phase 1 uses a `pgvector` compatible implementation as MVP (storing embeddings as JSON arrays with JS cosine similarity). Rationale: Keeps infrastructure simple for the local dev environment while allowing a swap to dedicated vector DBs later using the `.env` `VECTOR_STORE_PROVIDER` injection.
+
+8. **Synchronous Knowledge Ingestion MVP (ADR-007):** URL scraping and Google Sheets extraction can be time-consuming. Decision: Handled synchronously in Phase 1 within the `/upload` API endpoint using native Node `fetch`. Rationale: Keeps deployment simple without needing BullMQ right away. Will refactor to event-driven processing via BullMQ in Phase 3 when advanced scaling is required.
+
+### 1.5 Agent Testing (Browser) — Technical Choices
+
+1. **SSE for LLM Streaming (ADR-008):** Used Server-Sent Events (SSE) over WebSockets for streaming LLM responses. Rationale: SSE is unidirectional server→client, which matches the LLM streaming model exactly. Simpler than WebSockets (no handshake, auto-reconnect), works through all CDN/proxy layers, and is native to the `EventSource` browser API. The backend `chat.controller.ts` sets `Content-Type: text/event-stream` and writes `data:` frames.
+
+2. **Web Speech API for STT (Zero-Cost):** Used the browser-native `webkitSpeechRecognition` API instead of a paid STT provider. Supports continuous recognition, interim results, and language selection. Trade-off: quality varies by browser (Chrome is best), no server-side processing needed. ElevenLabs or Deepgram can be plugged in later for production-grade accuracy.
+
+3. **Browser SpeechSynthesis for TTS (Zero-Cost):** Used the browser's `SpeechSynthesis` API for reading agent responses aloud. Supports voice selection and rate/pitch control. Toggle-able via the UI. Trade-off: voice quality is basic compared to ElevenLabs/Azure Neural voices, but eliminates API costs during testing. The `use-chat.ts` hook is structured to swap in a provider-based TTS with minimal changes.
+
+4. **KB Context Injection via Vector Search:** On every user message, the service queries all linked knowledge bases by embedding the user query and running cosine similarity search (via `@vaanix/vector-store`). Top 5 chunks above 0.5 similarity are injected into the system prompt as `--- Knowledge Base Context ---` blocks. This approach is simple but effective — no reranking or HyDE yet.
+
+5. **Conversation Persistence with Metrics:** Both user and assistant messages are stored in `conversation_messages` with `token_count` (estimated at 1 token ≈ 4 chars) and `latency_ms` (wall-clock from user message receipt to full response). This enables future analytics on response quality and cost per conversation.
+
+6. **Per-KB Vector Queries (Not Batch):** The `VectorQuery` interface only supports filtering by a single `knowledgeBaseId` string. For agents linked to multiple KBs, we query each KB individually in parallel (`Promise.all`) and merge results by score. This is correct but may need optimization when agents have 10+ KBs linked.
+
+7. **Frontend SSE Parsing with `fetch` (Not `EventSource`):** Used `fetch` with `ReadableStream` reader instead of `EventSource` because `EventSource` doesn't support custom headers (needed for auth bearer token). The `use-chat.ts` hook manually parses `data:` lines from the stream, handling `[DONE]` sentinel to finalize messages.
