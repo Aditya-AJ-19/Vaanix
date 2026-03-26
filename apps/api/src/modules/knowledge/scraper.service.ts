@@ -100,8 +100,10 @@ async function validateUrlForSsrf(rawUrl: string): Promise<void> {
 
     for (const addr of addresses) {
         if (isPrivateIp(addr)) {
+            // Log the actual address for debugging purposes only
+            console.debug(`Blocked private IP address: ${addr} for hostname: ${hostname}`);
             throw new Error(
-                `Requests to private/internal IP addresses are not allowed (resolved: ${addr}).`,
+                'Requests to private/internal IP addresses are not allowed.',
             );
         }
     }
@@ -169,9 +171,18 @@ export async function scrapeUrl(url: string, timeoutMs = 10000): Promise<ScrapeR
             throw new Error(`Unsupported content type: ${contentType}. Only HTML and plain text are supported.`);
         }
 
+        // Check Content-Length header first to avoid reading large responses into memory
+        const contentLength = response.headers.get('content-length');
+        if (contentLength) {
+            const size = parseInt(contentLength, 10);
+            if (!isNaN(size) && size > 2 * 1024 * 1024) {
+                throw new Error('Page too large (>2MB). Consider uploading content manually.');
+            }
+        }
+
         const html = await response.text();
 
-        // Limit HTML size to 2MB to prevent memory issues
+        // Fallback: check actual size if Content-Length was missing or invalid
         if (html.length > 2 * 1024 * 1024) {
             throw new Error('Page too large (>2MB). Consider uploading content manually.');
         }

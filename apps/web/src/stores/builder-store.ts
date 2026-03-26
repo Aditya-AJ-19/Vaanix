@@ -166,6 +166,22 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         // Selection-only changes must not mark the workflow dirty so that
         // clicking a node does not trigger an unsaved-changes prompt.
         const hasStructuralChange = changes.some((c) => c.type !== 'select');
+
+        // Detect structural changes that should be recorded for undo:
+        // - Node removal
+        // - Position changes when dragging ends (dragging === false)
+        // - Other non-selection changes
+        const shouldSnapshot = changes.some((c) => {
+            if (c.type === 'remove') return true;
+            if (c.type === 'position' && c.dragging === false) return true;
+            if (c.type !== 'select' && c.type !== 'position') return true;
+            return false;
+        });
+
+        if (shouldSnapshot) {
+            get().pushSnapshot();
+        }
+
         set((s) => ({
             nodes: applyNodeChanges(changes, s.nodes) as BuilderNode[],
             ...(hasStructuralChange ? { isDirty: true } : {}),
@@ -173,6 +189,14 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     },
 
     onEdgesChange: (changes) => {
+        // Detect structural edge changes that should be recorded for undo:
+        // - Edge removal or other structural changes
+        const shouldSnapshot = changes.some((c) => c.type === 'remove' || c.type !== 'select');
+
+        if (shouldSnapshot) {
+            get().pushSnapshot();
+        }
+
         set((s) => ({ edges: applyEdgeChanges(changes, s.edges) as BuilderEdge[], isDirty: true }));
     },
 
