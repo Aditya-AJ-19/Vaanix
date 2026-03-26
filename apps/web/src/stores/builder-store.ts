@@ -163,7 +163,13 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     /* React Flow change handlers */
 
     onNodesChange: (changes) => {
-        set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) as BuilderNode[], isDirty: true }));
+        // Selection-only changes must not mark the workflow dirty so that
+        // clicking a node does not trigger an unsaved-changes prompt.
+        const hasStructuralChange = changes.some((c) => c.type !== 'select');
+        set((s) => ({
+            nodes: applyNodeChanges(changes, s.nodes) as BuilderNode[],
+            ...(hasStructuralChange ? { isDirty: true } : {}),
+        }));
     },
 
     onEdgesChange: (changes) => {
@@ -218,7 +224,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         // Reset counter based on loaded nodes
         const maxNum = nodes.reduce((max, n) => {
             const m = n.id.match(/-(\d+)-/);
-            return m ? Math.max(max, parseInt(m[1]!)) : max;
+            return m ? Math.max(max, parseInt(m[1]!, 10)) : max;
         }, 0);
         nodeCounter = maxNum;
         set({ nodes, edges, isDirty: false, past: [], future: [], selectedNodeId: null });
@@ -226,6 +232,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
     clearCanvas: () => {
         get().pushSnapshot();
+        nodeCounter = 0;
         set({ nodes: [], edges: [], selectedNodeId: null, isDirty: true });
     },
 

@@ -112,12 +112,20 @@ export async function embedDocument(
             return { chunkCount: 0, status: 'failed', errorMessage: 'Document not found' };
         }
         if (!doc.content) {
+            await knowledgeRepository.updateDocument(documentId, {
+                status: 'failed',
+                errorMessage: 'Document has no content to embed',
+            }).catch((updateErr) => console.error('[embedDocument] Failed to persist failed status:', updateErr));
             return { chunkCount: 0, status: 'failed', errorMessage: 'Document has no content to embed' };
         }
 
         // 2. Chunk the text
         const chunks = chunkText(doc.content, options);
         if (chunks.length === 0) {
+            await knowledgeRepository.updateDocument(documentId, {
+                status: 'failed',
+                errorMessage: 'No chunks generated from content',
+            }).catch((updateErr) => console.error('[embedDocument] Failed to persist failed status:', updateErr));
             return { chunkCount: 0, status: 'failed', errorMessage: 'No chunks generated from content' };
         }
 

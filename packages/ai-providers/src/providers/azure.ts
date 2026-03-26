@@ -12,7 +12,7 @@ import type { LLMProvider, EmbeddingProvider, ChatParams, ChatResponse, ChatChun
 
 function getClient(): OpenAI {
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
     if (!apiKey || !endpoint) {
         throw new Error('AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT must be set');
     }
@@ -37,7 +37,7 @@ function getClient(): OpenAI {
  */
 function getAzureEmbeddingClient(): OpenAI {
     const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
     if (!apiKey || !endpoint) {
         throw new Error('AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT must be set');
     }

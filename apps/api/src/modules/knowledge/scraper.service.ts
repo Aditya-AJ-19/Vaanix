@@ -152,6 +152,7 @@ export async function scrapeUrl(url: string, timeoutMs = 10000): Promise<ScrapeR
     try {
         const response = await fetch(url, {
             signal: controller.signal,
+            redirect: 'error',   // Prevent SSRF via open-redirect: 'manual' is node-only, 'error' is universal
             headers: {
                 'User-Agent': 'Vaanix-KnowledgeBot/1.0 (+https://vaanix.com)',
                 'Accept': 'text/html,application/xhtml+xml',

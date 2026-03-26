@@ -182,6 +182,17 @@ export function useChat(agentId: string) {
                         }
                         if (parsed.error) {
                             setError(parsed.error);
+                            // Remove the empty assistant bubble if nothing was streamed yet
+                            if (!fullContent) {
+                                setMessages((prev) => {
+                                    const updated = [...prev];
+                                    const last = updated[updated.length - 1];
+                                    if (last && last.role === 'assistant' && !last.content) {
+                                        updated.pop();
+                                    }
+                                    return updated;
+                                });
+                            }
                         }
                     } catch {
                         // skip malformed JSON

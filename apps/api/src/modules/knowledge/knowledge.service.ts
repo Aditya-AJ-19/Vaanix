@@ -178,10 +178,14 @@ export const knowledgeService = {
                     await embedDocument(doc.id, embeddingProvider, vectorStore);
                 } catch (err) {
                     logger.error(`Failed to initialize embedding for document ${doc.id}:`);
-                    await knowledgeRepository.updateDocument(doc.id, {
-                        status: 'failed',
-                        errorMessage: err instanceof Error ? err.message : 'Unknown embedding initialization error',
-                    });
+                    try {
+                        await knowledgeRepository.updateDocument(doc.id, {
+                            status: 'failed',
+                            errorMessage: err instanceof Error ? err.message : 'Unknown embedding initialization error',
+                        });
+                    } catch (dbErr) {
+                        logger.error(`Failed to persist embedding error for document ${doc.id}: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`);
+                    }
                 }
             })();
         }
